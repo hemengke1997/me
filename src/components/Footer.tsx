@@ -89,7 +89,7 @@ export default function Footer() {
                       className='blend group size-10 items-center justify-center rounded-full p-2 hover:bg-black/5  dark:hover:bg-white/20'
                     >
                       <svg className='blend size-full fill-current group-hover:fill-black group-hover:dark:fill-white'>
-                        <use href={`/me/social.svg#${SOCIAL.ICON}`} />
+                        <use href={`/social.svg#${SOCIAL.ICON}`} />
                       </svg>
                     </a>
                   ))}

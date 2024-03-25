@@ -43,7 +43,7 @@ export default function Search({ data }: Props) {
           className='w-full rounded border border-black/10 bg-black/5 px-2.5 py-1.5 pl-10 text-black outline-none focus:border-black dark:border-white/20 dark:bg-white/15 dark:text-white focus:dark:border-white'
         />
         <svg className='absolute left-1.5 top-1/2 size-6 -translate-y-1/2 stroke-current'>
-          <use href={`/me/ui.svg#search`} />
+          <use href={`/ui.svg#search`} />
         </svg>
       </div>
       {query.length >= 2 && results.length >= 1 && (

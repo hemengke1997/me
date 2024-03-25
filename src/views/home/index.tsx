@@ -29,7 +29,7 @@ export default function Index() {
         <div id='stars3' className='fixed inset-0'></div>
       </div>
 
-      <script src={`/me/js/bg.js`}></script>
+      <script src={`/js/bg.js`}></script>
 
       {/* <!-- HERO --> */}
       <section className='relative h-screen w-full'>
@@ -49,9 +49,15 @@ export default function Index() {
         <div className='animate absolute flex size-full items-center justify-center'>
           <div className='relative flex size-full items-center justify-center'>
             <div className='p-5 text-center'>
+              <img
+                src='https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&duration=3000&pause=200&center=true&color=149ECA&vCenter=true&random=true&width=432&lines=Nodejs;React;Typescript;Nextjs;Vite;antd;VSCode;Postcss;I18n;Rust'
+                alt='Skill'
+                className={'w-full'}
+              />
               <p className='animated mb-1 text-lg font-semibold opacity-75 md:text-xl lg:text-2xl'>
                 你好，我是 hemengke1997 AKA minko
               </p>
+
               <p className='animated text-2xl font-bold uppercase text-black md:text-3xl lg:text-4xl dark:text-white'>
                 Building something cool
               </p>
@@ -79,12 +85,6 @@ export default function Index() {
 
       <div className='relative bg-white dark:bg-black'>
         <div className='mx-auto max-w-screen-sm space-y-24 p-5 pb-16'>
-          {/* About me */}
-          <section>
-            <article>
-              <p></p>
-            </article>
-          </section>
           {/* <!-- Blog Preview Section --> */}
           <section className='animate'>
             <div className='space-y-4'>
@@ -138,8 +138,8 @@ export default function Index() {
             <div>
               <p className='font-semibold text-black dark:text-white'> 联系方式 </p>
               <div className='mt-4 grid auto-cols-min grid-cols-4 gap-y-2'>
-                {SOCIALS.map((social) => (
-                  <>
+                {SOCIALS.map((social, index) => (
+                  <div key={index}>
                     <div className='col-span-1 flex items-center gap-1'>
                       <span className='truncate whitespace-nowrap'>{social.NAME}</span>
                     </div>
@@ -159,7 +159,7 @@ export default function Index() {
                         </span>
                       </a>
                     </div>
-                  </>
+                  </div>
                 ))}
               </div>
             </div>

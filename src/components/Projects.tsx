@@ -53,11 +53,8 @@ export default function Projects({ data, tags }: Props) {
                       filter.has(tag) && 'fill-black dark:fill-white',
                     )}
                   >
-                    <use href={`/me/ui.svg#square`} className={mergeClass(!filter.has(tag) ? 'block' : 'hidden')} />
-                    <use
-                      href={`/me/ui.svg#square-check`}
-                      className={mergeClass(filter.has(tag) ? 'block' : 'hidden')}
-                    />
+                    <use href={`/ui.svg#square`} className={mergeClass(!filter.has(tag) ? 'block' : 'hidden')} />
+                    <use href={`/ui.svg#square-check`} className={mergeClass(filter.has(tag) ? 'block' : 'hidden')} />
                   </svg>
                   {tag}
                 </button>
