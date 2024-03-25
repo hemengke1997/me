@@ -1,0 +1,9 @@
+---
+import { SITE } from '~/consts'
+import PageLayout from '~/layouts/PageLayout.astro'
+import Home from '~/views/home'
+---
+
+<PageLayout title='Home' description={SITE.DESCRIPTION}>
+  <Home />
+</PageLayout>

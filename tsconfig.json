@@ -1,0 +1,12 @@
+{
+  "extends": "@minko-fe/tsconfig/tsconfig.project",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "moduleResolution": "Node",
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["src/*"]
+    }
+  }
+}

@@ -1,0 +1,404 @@
+---
+title: "React 状态管理库"
+summary: "截止2024年比较新的React状态管理库的运行原理"
+date: "2024-02-18"
+draft: false
+tags:
+- React
+- 状态管理
+---
+
+# unstated-next
+## 核心
+结合了Context和hook，把hook的返回值作为value传递给Context
+## 使用方式
+```tsx
+import React, { useState } from 'react'
+import { createContainer } from 'unstated-next'
+
+function useCounter(initialState = 0) {
+  let [count, setCount] = useState(initialState)
+  let decrement = () => setCount(count - 1)
+  let increment = () => setCount(count + 1)
+  return { count, decrement, increment }
+}
+
+let Counter = createContainer(useCounter)
+
+function App() {
+  return (
+    <Counter.Provider>
+      <CounterDisplay />
+      <Counter.Provider initialState={2}>
+        <div>
+          <div>
+            <CounterDisplay />
+          </div>
+        </div>
+      </Counter.Provider>
+    </Counter.Provider>
+  )
+}
+
+render(<App />, document.getElementById("root"))
+```
+### 核心方法
+
+`createContainer`
+
+```tsx
+const EMPTY: unique symbol = Symbol()
+
+export interface ContainerProviderProps<State = void> {
+  initialState?: State
+  children: React.ReactNode
+}
+
+export interface Container<Value, State = void> {
+  Provider: React.ComponentType<ContainerProviderProps<State>>
+  useContainer: () => Value
+}
+
+export function createContainer<Value, State = void>(
+  useHook: (initialState?: State) => Value,
+): Container<Value, State> {
+  let Context = React.createContext<Value | typeof EMPTY>(EMPTY)
+
+  function Provider(props: ContainerProviderProps<State>) {
+    let value = useHook(props.initialState)
+    return <Context.Provider value={value}>{props.children}</Context.Provider>
+  }
+
+  function useContainer(): Value {
+    let value = React.useContext(Context)
+    if (value === EMPTY) {
+      throw new Error("Component must be wrapped with <Container.Provider>")
+    }
+    return value
+  }
+
+  return { Provider, useContainer }
+}
+
+export function useContainer<Value, State = void>(
+  container: Container<Value, State>,
+): Value {
+  return container.useContainer()
+}
+```
+## 优点
+
+- 把 Context 和 react hook 联动起来了，可以很方便共享hook逻辑
+## 缺点
+
+- 未解决Context穿透问题
+- 与React强绑定，无法在组件外获取store
+
+---
+
+
+# context-state
+## 核心
+同 `unstated-next`，结合 Context 和 React hook，方便hook封装共享
+## 使用方式
+```tsx
+import { createContainer } from 'context-state'
+import React from 'react'
+
+function useCounter() {
+  const [count, setCount] = React.useState(0)
+  const increment = () => setCount((c) => c + 1)
+
+  return {
+    count,
+    increment,
+  }
+}
+
+const CounterContainer = createContainer(useCounter)
+
+CounterContainer.usePicer(['count', 'increment'])
+```
+### 核心方法
+`createContainer`、`usePicker`
+```tsx
+export function createContainer<Value, InitialValue>(useHook: UseHookType<InitialValue, Value>) {
+  const Context: React.Context<ContextValue<Value> | typeof EMPTY> = createContext<ContextValue<Value> | typeof EMPTY>(
+    EMPTY,
+  )
+
+  const Provider = ({ value, children }: { value?: InitialValue; children: ReactNode }) => {
+    const inHookValue = useHook(value as InitialValue)
+    const valueRef = useRef(inHookValue)
+    const contextValue = useRef<ContextValue<Value>>()
+
+    if (!contextValue.current) {
+      const listeners = new Set<Listener<Value>>()
+
+      contextValue.current = {
+        [CONTEXT_VALUE]: {
+          /* "v"alue     */ v: valueRef,
+          /* "l"isteners */ l: listeners,
+        },
+      }
+    }
+    
+    useIsomorphicLayoutEffect(() => {
+      valueRef.current = inHookValue
+
+      // 监听hook的返回值改变
+      // 通知消息
+      ;(contextValue.current as ContextValue<Value>)?.[CONTEXT_VALUE].l.forEach((listener) => {
+        listener(inHookValue)
+      })
+    }, [inHookValue])
+
+    // 没有直接把hook的返回值传递给Context
+    // 而是使用Ref，这样不会造成渲染
+    // 把渲染逻辑封装到useSelector中，
+    return createElement(Context.Provider, { value: contextValue.current }, children)
+  }
+
+  function useSelector<Selected>(
+    selector: SelectorFn<Value, Selected>,
+    equalityFn: EqualityFC = shallowEqual,
+  ): Selected {
+    const context = useContext(Context)
+
+    let contextValue = (context as ContextValue<Value>)?.[CONTEXT_VALUE]
+
+    if (context === EMPTY) {
+      if (isDev) {
+        contextValue = ContainerCache.get(key)[CONTEXT_VALUE].v.current
+        if (!contextValue) {
+          throw new Error(ErrorText)
+        }
+      } else {
+        throw new Error(ErrorText)
+      }
+    }
+
+    const {
+      /* "v"alue     */ v: { current: value },
+      /* "l"isteners */ l: listeners,
+    } = contextValue
+
+    const [, triggerRender] = useSafeState(0)
+
+    const selected = selector(value)
+
+    const currentRef = useRef<{
+      value: Value
+      selected: Selected
+    }>()
+
+    currentRef.current = {
+      value,
+      selected,
+    }
+
+    useIsomorphicLayoutEffect(() => {
+      function checkForUpdates(nextValue: Value) {
+        try {
+          if (!currentRef.current) {
+            return
+          }
+          if (currentRef.current.value === nextValue) {
+            return
+          }
+          const nextSelected = selector(nextValue)
+          if (equalityFn(currentRef.current.selected, nextSelected)) {
+            return
+          }
+          triggerRender((n) => n + 1)
+        } catch (e) {}
+      }
+      // 添加订阅
+
+      // listeners 是通过 Context 传递到 useSelector 的
+      listeners.add(checkForUpdates)
+      return () => {
+        listeners.delete(checkForUpdates)
+      }
+    }, [listeners])
+
+    return selected
+  }
+
+  function usePicker<Selected extends keyof Value>(
+    selected: Selected[],
+    equalityFn: EqualityFC = shallowEqual,
+  ): Pick<Value, Selected> {
+    return useSelector((state) => pick(state as Required<Value>, selected), equalityFn)
+  }
+
+  return {
+    Provider,
+    Consumer,
+    useSelector,
+    usePicker,
+  }
+}
+```
+## 优点
+
+- 通过传递Ref 至 Context 和 发布订阅（当hook返回值改变时通知selector刷新React组件） 解决了 Context 渲染穿透的问题
+- ts类型提示完善，使用 `usePicker` 语法糖十分方便
+## 缺点
+
+- 强绑定React，无法在组件外获取store
+- shallowEqual 相比 Object.is 可能会造成不必要的性能损耗
+
+---
+
+# Zusstand@0.0.3
+> 这里只分析核心代码，也是zustand的核心思想
+
+## 核心
+状态外部化
+## 使用方式
+```tsx
+import create from 'zustand'
+
+// Name your store anything you like, but remember, it's a hook!
+const [useStore] = create(set => ({
+  // Everything in here is your state
+  count: 1,
+  // You don't have to nest your actions, but makes it easier to fetch them later on
+  actions: {
+    inc: () => set(state => ({ count: state.count + 1 })), // same semantics as setState
+    dec: () => set(state => ({ count: state.count - 1 })),
+  },
+}))
+```
+### 核心方法
+`create`
+## 核心代码
+```tsx
+import React from 'react'
+
+export default function create(fn) {
+  // 监听数据改变
+  let listeners = []
+
+  // 状态外部化
+  let state = {
+    // fn 是用户传入的方法
+    current: fn(
+      // 这个是 set 方法
+      merge => {
+        if (typeof merge === 'function') {
+          merge = merge(state.current)
+        }
+        state.current = { ...state.current, ...merge }
+
+        // 通知监听器数据发生变化
+        listeners.forEach(listener => listener(state.current))
+      },
+      // 这个是 get 方法
+      () => state.current
+    ),
+  }
+  return [
+    // useStore
+    (selector, dependencies) => {
+      let selected = selector ? selector(state.current) : { ...state.current }
+      // Using functional initial b/c selected itself could be a function
+      const [slice, set] = React.useState(() => selected)
+      const sliceRef = React.useRef()
+      React.useEffect(() => void (sliceRef.current = slice), [slice])
+      React.useEffect(() => {
+        // 数据变化后，会触发 ping 方法
+        const ping = () => {
+          // Get fresh selected state
+          let selected = selector ? selector(state.current) : { ...state.current }
+          // If state is not equal from the get go and not an atomic then shallow equal it
+          if (sliceRef.current !== selected && typeof selected === 'object' && !Array.isArray(selected)) {
+            selected = Object.entries(selected).reduce(
+              (acc, [key, value]) => (sliceRef.current[key] !== value ? { ...acc, [key]: value } : acc),
+              sliceRef.current
+            )
+          }
+          // Using functional initial b/c selected itself could be a function
+          if (sliceRef.current !== selected) {
+            // Refresh local slice
+            // useState.set 刷新react组件
+            set(() => selected)
+          }
+        }
+        listeners.push(ping)
+        return () => (listeners = listeners.filter(i => i !== ping))
+      }, dependencies || [selector])
+      // Returning the selected state slice
+      return selected
+    },
+    {
+      subscribe: fn => {
+        listeners.push(fn)
+        return () => (listeners = listeners.filter(i => i !== fn))
+      },
+      getState: () => state.current,
+      destroy: () => {
+        listeners = []
+        state.current = {}
+      },
+    },
+  ]
+}
+```
+## 优点
+
+- 状态外部化，不需要强绑定React，可以在组件外获取store
+```tsx
+const [, api] = create(...)
+
+// Listening to changes
+api.subscribe(state => console.log("i log whenever state changes", state))
+// Getting fresh state
+const state = api.getState()
+// Destroying the store
+api.destroy()
+```
+
+- 扩展性强，可发展到中间件
+### 缺点
+
+- Zustand无法跟 react hook 联动
+- 写中间件时类型定义很繁琐
+
+
+---
+
+# Jotai
+## 核心
+原子化的状态管理方案，类似 `recoil`，但比recoil更易上手
+## 使用方式
+```tsx
+import { atom, Provider } from 'jotai'
+
+const countAtom = atom(0)
+const countryAtom = atom("Japan")
+
+const Root = () => (
+  <Provider>
+    <App />
+  </Provider>
+)
+
+
+import { useAtom } from 'jotai'
+
+function Counter() {
+  const [count, setCount] = useAtom(countAtom)
+  return (
+    <h1>
+      {count}
+      <button onClick={() => setCount(c => c + 1)}>one up</button>
+    </h1>
+    )
+}
+```
+
+Jotai的核心是通过Context来做的
+
+没有使用过原子化状态管理，不再分析了，我觉得原子化状态太琐碎了，不好管理
