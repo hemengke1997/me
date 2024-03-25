@@ -23,7 +23,7 @@ const tags = [...new Set(posts.flatMap((post) => post.data.tags).map((t) => t.to
   </TopLayout>
   <BottomLayout>
     <div class='animate'>
-      <Blog client:visible tags={tags} data={posts} />
+      <Blog client:load tags={tags} data={posts} />
     </div>
   </BottomLayout>
 </PageLayout>

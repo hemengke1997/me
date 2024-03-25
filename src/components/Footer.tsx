@@ -1,5 +1,6 @@
 import Container from '~/components/Container'
 import { SITE, SOCIALS } from '~/consts'
+import Logo from '../assets/logo.svg?react'
 
 export default function Footer() {
   return (
@@ -57,7 +58,7 @@ export default function Footer() {
                   href='/'
                   className='flex w-fit gap-1 font-semibold text-current transition-colors duration-300 ease-in-out hover:text-black dark:hover:text-white'
                 >
-                  <img src='/logo.svg' className='w-20' />
+                  <Logo className={'h-auto w-20'} />
                 </a>
               </div>
               <div className='flex items-center justify-center gap-2 sm:justify-end'>

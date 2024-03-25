@@ -51,6 +51,7 @@
     "@minko-fe/tsconfig": "^2.0.7",
     "eslint": "^8.57.0",
     "eslint-plugin-astro": "^0.32.0",
-    "prettier-plugin-astro": "^0.13.0"
+    "prettier-plugin-astro": "^0.13.0",
+    "vite-plugin-svgr": "^4.2.0"
   }
 }

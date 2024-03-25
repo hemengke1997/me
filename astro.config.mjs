@@ -21,6 +21,7 @@ import rehypeKatax from 'rehype-katex'
 import emoji from 'remark-emoji'
 import remarkMath from 'remark-math'
 import remarkToc from 'remark-toc'
+import svgr from 'vite-plugin-svgr'
 import { remarkPostTime, remarkReadingTime } from './src/utils/remark.mjs'
 
 // https://astro.build/config
@@ -94,5 +95,6 @@ export default defineConfig({
     ssr: {
       noExternal: ['@minko-fe/react-hook', 'react-use'],
     },
+    plugins: [svgr()],
   },
 })

@@ -49,9 +49,7 @@ export default function Index() {
         <div className='animate absolute flex size-full items-center justify-center'>
           <div className='relative flex size-full items-center justify-center'>
             <div className='p-5 text-center'>
-              <p className='animated mb-1 text-lg font-semibold opacity-75 md:text-xl lg:text-2xl'>
-                你好，我是 hemengke1997 AKA minko
-              </p>
+              <p className='animated mb-1 text-lg font-semibold opacity-75 md:text-xl lg:text-2xl'>你好，我是 Minko</p>
 
               <p className='animated text-2xl font-bold uppercase text-black md:text-3xl lg:text-4xl dark:text-white'>
                 Building something cool
@@ -165,18 +163,6 @@ export default function Index() {
             </div>
           </section>
         </div>
-
-        {/* <!-- Tech Stack Section --> */}
-        {/* <section className='animate'>
-          <div className='space-y-4'>
-            <p className='font-semibold text-black dark:text-white'> Website build with </p>
-            <div className='mt-5 flex flex-wrap items-center gap-2'>
-              {stack.map((item) => (
-                <StackCard text={item.text} icon={item.icon} href={item.href} />
-              ))}
-            </div>
-          </div>
-        </section> */}
       </div>
     </>
   )

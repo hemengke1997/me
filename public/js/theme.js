@@ -35,7 +35,9 @@ function preloadTheme() {
     if (userTheme === "light" || userTheme === "dark") {
       return userTheme
     } else {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      // return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      // dark is first
+      return "dark"
     }
   })()
 

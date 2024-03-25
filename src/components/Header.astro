@@ -2,6 +2,7 @@
 import Container from '~/components/Container'
 import { LINKS, SITE } from '~/consts'
 import { mergeClass } from '~/utils'
+import Logo from '../assets/logo.svg?react'
 const { pathname } = Astro.url
 const subpath = pathname.match(/[^/]+/g)
 ---
@@ -14,7 +15,7 @@ const subpath = pathname.match(/[^/]+/g)
           href='/'
           class='flex gap-1 text-current hover:text-black dark:hover:text-white transition-colors duration-300 ease-in-out'
         >
-          <img src='/logo.svg' class='w-20' />
+          <Logo className={'h-auto w-20'} />
         </a>
       </div>
 
