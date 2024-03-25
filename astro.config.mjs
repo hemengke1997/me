@@ -14,7 +14,7 @@ import {
 } from '@shikijs/transformers'
 import { defineConfig, passthroughImageService } from 'astro/config'
 import compress from 'astro-compress'
-import pagefind from 'astro-pagefind'
+// import pagefind from 'astro-pagefind'
 import { rehypeAccessibleEmojis } from 'rehype-accessible-emojis'
 import rehypeExternalLinks from 'rehype-external-links'
 import rehypeKatax from 'rehype-katex'
@@ -25,7 +25,7 @@ import { remarkPostTime, remarkReadingTime } from './src/utils/remark.mjs'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://hemengke1997.github.io',
+  site: 'https://minko-me.vercel.app',
   build: {
     format: 'file',
   },
@@ -36,7 +36,7 @@ export default defineConfig({
     tailwind({
       nesting: true,
     }),
-    pagefind(),
+    // pagefind(),
     compress({
       CSS: {
         csso: false,
@@ -45,9 +45,9 @@ export default defineConfig({
         },
       },
       HTML: true,
-      Image: true,
+      Image: false,
       JavaScript: true,
-      SVG: true,
+      SVG: false,
       Parser: {
         CSS: 'lightningcss',
       },
