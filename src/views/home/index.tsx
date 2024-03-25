@@ -7,7 +7,7 @@ const posts = (await getCollection('blog'))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3)
 
-const _projects = (await getCollection('projects'))
+const projects = (await getCollection('projects'))
   .filter((project) => !project.data.draft)
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3)
@@ -49,11 +49,6 @@ export default function Index() {
         <div className='animate absolute flex size-full items-center justify-center'>
           <div className='relative flex size-full items-center justify-center'>
             <div className='p-5 text-center'>
-              <img
-                src='https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&duration=3000&pause=200&center=true&color=149ECA&vCenter=true&random=true&width=432&lines=Nodejs;React;Typescript;Nextjs;Vite;antd;VSCode;Postcss;I18n;Rust'
-                alt='Skill'
-                className={'w-full'}
-              />
               <p className='animated mb-1 text-lg font-semibold opacity-75 md:text-xl lg:text-2xl'>
                 你好，我是 hemengke1997 AKA minko
               </p>
@@ -64,6 +59,11 @@ export default function Index() {
               <p className='animated text-sm opacity-75 md:text-base lg:text-lg'>
                 一个热爱技术的前端工程师，专注于效率工具开发
               </p>
+              <img
+                src='https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&duration=3000&pause=100&center=true&color=149ECA&vCenter=true&random=true&width=432&lines=Nodejs;React;Typescript;Nextjs;Vite;antd;VSCode;Postcss;I18n;Rust;Astro'
+                alt='Skill'
+                className={'w-full'}
+              />
               <div className='animated mt-5 flex flex-wrap justify-center gap-4'>
                 <a
                   href='/blog'
@@ -110,7 +110,7 @@ export default function Index() {
           </section>
 
           {/* <!-- Project Preview Section --> */}
-          {/* <section className='animate'>
+          <section className='animate'>
             <div className='space-y-4'>
               <div className='flex justify-between'>
                 <p className='font-semibold text-black dark:text-white'> 最近项目 </p>
@@ -131,7 +131,7 @@ export default function Index() {
                 ))}
               </ul>
             </div>
-          </section> */}
+          </section>
 
           {/* <!-- Contact Section --> */}
           <section className='animate'>

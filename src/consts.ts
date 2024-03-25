@@ -31,19 +31,14 @@ export const LINKS: Links = [
     TEXT: '主页',
     HREF: '/',
   },
-  // {
-  //   TEXT: 'Work',
-  //   HREF: '/work',
-  // },
   {
     TEXT: '文章',
     HREF: '/blog',
   },
-  // TODO
-  // {
-  //   TEXT: '项目',
-  //   HREF: '/projects',
-  // },
+  {
+    TEXT: '项目',
+    HREF: '/projects',
+  },
 ]
 
 // Socials
