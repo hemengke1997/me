@@ -1,0 +1,451 @@
+---
+title: "electron开发入门"
+date: "2021-04-23 11:20"
+draft: false
+tags:
+- electron
+---
+
+# ![test.gif](https://cdn.nlark.com/yuque/0/2021/gif/1447731/1619095181755-c53f010c-9e82-40af-8c8e-8f6a65f22103.gif#clientId=u0befa86c-3bfb-4&from=ui&id=FuPOb&originHeight=240&originWidth=300&originalType=binary&size=800719&status=done&style=none&taskId=u51796c76-d331-490e-b77b-b70d158007c)
+# 前言 ~~(可以不看)~~
+## 什么是electron
+electron是github公司设计的一款使用JS跨平台开发客户端的技术。与其类似的还有node-webkit.js（简称NWjs）
+## 使用electron可以做些什么
+可以使用JavaScript开发Windows、macOS、Linux三个平台的客户端 （小公司狂喜），一套代码，打包成三个平台的安装包
+
+# electron开发步骤(react + umi) ~~(建议看看)~~
+## 先笼统介绍大致步骤
+
+1. 设置electron国内镜像
+```powershell
+$ yarn config set electron_mirror https://npm.taobao.org/mirrors/electron/
+```
+
+2. 安装 `electron`
+```powershell
+$ yarn add electron@latest -D
+```
+
+3. 安装 `umi`
+```powershell
+$ yarn create @umijs/umi-app
+```
+
+4. 安装 `[umi-plugin-electron-builder](https://github.com/BySlin/umi-plugin-electron-builder)`
+```powershell
+$ yarn add umi-plugin-electron-builder -D
+```
+
+5. 执行初始化 `umi-plugin-electron-builder` 命令
+```powershell
+$ umi electron init
+```
+
+- 初始化之后，可以看到 `package.json` 中新增了一些脚本命令
+
+6. 修改文件目录至以下效果（采用区分main和rederer的方案，看起来更清晰）
+```markdown
+├─ build                                             
+│  ├─ Icon.icns                            // 图标
+│  ├─ icon.ico                             // 图标
+│  ├─ icon.png                             // 图标
+│  ├─ installerIcon.ico                    // 安装包图标                  
+├─ config                                  
+│  ├─ electronBuild.ts                     // electron打包相关配置                   
+│  ├─ routes.ts                            // 配置式路由
+│  └─ umiConfig.ts                         // umi相关配置
+├─ src                                     // src：源码目录
+│  ├─ common                               // 公共
+│  │  └─ utils                                          
+│  ├─ main                                 // 主进程                   
+│  │  ├─ index.ts                          
+│  │  └─ tsconfig.json                     // main的ts配置
+│  ├─ preload                              // 预加载（若未使用contextIsolation，这个文件就没用）
+│  │  └─ index.ts                          
+│  └─ renderer                             // 渲染进程（跟平时开发的src目录结构一致）
+│     ├─ api                                     
+│     ├─ components                                       
+│     ├─ layouts                                         
+│     ├─ pages                                           
+│     │  └─ document.ejs                   
+│     ├─ public                            // 静态文件，会单独打包出来的           
+│     │  └─ logo.png                       
+│     ├─ utils                             
+│     ├─ app.ts                            // 具体查看umi
+│     ├─ global.less                       // 全局样式文件
+│     └─ tsconfig.json                     // rederer的ts配置
+├─ typing                                  // 全局的声明文件
+│  └─ types.d.ts                           
+├─ package.json                                                      
+├─ tsconfig.json                           // 全局ts配置
+├─ webServer.js                            // 测试时存放安装包的nodejs服务
+```
+
+7. 在 `package.json`中设置umi的 `APP_ROOT`
+```json
+"electron:dev": "cross-env APP_ROOT=src/renderer REACT_APP_ENV=dev umi dev electron",
+```
+## 为什么使用umi
+
+- 脚手架很方便，给开发者准备了很多配置项，节省了我们的精力，也压低了血压（但不致死）
+- 因为是做调研，所以给我的时间并不多，不想自己去配置各种各样的环境（ts、eslint、prettier等等）（其实是我不会 有没有老师教教我T>T
+## 为什么main目录和renderer目录下都有tsconfig.json
+**electron分为主进程和渲染进程，主进程中是nodejs环境，渲染进程中是我们熟悉的浏览器环境，这是他们的明显区分。不能在主进程中随意引入渲染进程中的代码，反之亦然。为了安全，也为了代码打包大小。所以我们之前经常使用的 **`@别名` **也需要做区分。在主进程下，@ 应该指向main目录。 在渲染进程下， @ 应该指向renderer目录。**
+```json
+// main下的tsconfig
+{
+  "extends": "../../tsconfig.json", // 继承根目录下的tsconfig
+  "compilerOptions": {
+    "paths": {
+      "@": ["./"],
+      "@/common": ["../common"],
+      "@/common/*": ["../common/*"]
+    }
+  },
+  "include": ["../../typing/**/*", "../main/**/*"]
+}
+```
+```json
+// rederer下的tsconfig
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@@/*": [".umi/*"],
+      "@/common": ["../common"],
+      "@/common/*": ["../common/*"]
+    }
+  },
+  "include": ["../../typing/**/*", "../renderer/**/*"]
+}
+```
+## 如何获取环境变量
+如上文所说，主进程和渲染进程是不同的环境，所以获取环境变量的方式不同。
+渲染进程中，使用umi的配置项，define注入REACT_APP_ENV，就可以在renderer下的所有文件中，直接使用REACT_APP_ENV获取环境变量了。
+主进程中，是nodejs环境，使用process.env来获取环境变量
+## 开发electron必备知识
+**首先我们需要在electron的**[**官网**](https://www.electronjs.org/)**上阅读 《快速入门》 部分**
+
+**之后需要熟悉的知识点：**
+
+- **主进程与渲染进程**
+- **browserWindow**
+- **主进程与渲染进程的通信（ipcMain,ipcRenderer）**
+- **如何实现跨域请求 (webSecurity)**
+- **如何实现自动更新 (electron-updater)**
+- **如何打包 (electron-builder)**
+- **如何设置系统托盘（windows右下角/macOS右上角）**
+
+### electron打包
+打包配置都在 config/electronBuild.ts 中
+```typescript
+export default {
+  buildType: 'vite', // webpack或vite，vite构建速度更快，但兼容性有问题
+  mainSrc: 'src/main', // 默认主进程目录
+  preloadSrc: 'src/preload', // 默认preload目录，可选，不需要可删除
+  outputDir: 'dist_electron', // 默认打包目录
+  externals: ['electron-updater', 'electron-log', 'source-map-support'], // electron相关包
+  rendererTarget: 'electron-renderer', // web | electron-renderer 使用上下文隔离时，必须设置web
+  viteConfig(config: InlineConfig, type: ConfigType) {
+    // 主进程Vite配置
+    // 配置参考 https://vitejs.dev/config/
+    // ConfigType分为main和preload可分别配置
+  },
+  // 通过 webpack-chain 的 API 修改 webpack 配置。
+  mainWebpackChain(config: Config, type: ConfigType) {
+    // ConfigType分为main和preload可分别配置
+    // if (type === 'main') {}
+    // if (type === 'preload') {}
+  },
+  builderOptions: {
+    // 配置参考 https://www.electron.build/configuration/configuration
+    appId: 'com.test.test',
+    publish: [
+      {
+        provider: 'generic',
+        url: 'http://dev.file.cn:3004', // 更新包地址
+      },
+    ],
+    directories: {
+      buildResources: 'build',
+    },
+    /**
+     * windows 配置项
+     */
+    win: {
+      target: ['nsis'],
+      icon: 'build/icon.ico', // 执行文件的图标
+      artifactName: '${productName}_setup_${version}.${ext}', // 执行文件的名字
+    },
+    nsis: {
+      oneClick: false, // 是否一键安装，一键安装的话，点了就装了，没有安装过程。
+      perMachine: true, // 是否显示按计算机还是按用户安装
+      allowToChangeInstallationDirectory: true, // 允许改变安装路径
+      installerIcon: 'build/installerIcon.ico', // 安装图标
+      runAfterFinish: true, // 安装好了就启动
+      createDesktopShortcut: true, // 创建桌面快捷方式
+      createStartMenuShortcut: true, // 创建开始菜单快捷方式
+      shortcutName: '测试有赚客户端', // 快捷方式的名字
+    },
+
+    /**
+     * mac 配置项
+     */
+    mac: {
+      category: 'public.app-category.business', // 咱们软件属于什么类型 文档：https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/LaunchServicesKeys.html#//apple_ref/doc/uid/TP40009250-SW8
+      target: ['dmg'], // 打包成dmg
+      artifactName: '${productName}_setup_${version}.${ext}', // 安装包名称
+      hardenedRuntime: true,
+      gatekeeperAssess: false,
+      darkModeSupport: true, // 是否支持暗黑模式
+      entitlements: 'build/entitlements.mac.plist',
+      entitlementsInherit: 'build/entitlements.mac.plist',
+    },
+    dmg: {
+      icon: 'build/volume.icns',
+      background: 'build/background.png', // macOS安装应用时有个背景图片
+      title: '${productName}',
+      iconSize: 80,
+      window: {
+        height: 422,
+        width: 600,
+      },
+      contents: [
+        {
+          type: 'file',
+          x: 144,
+          y: 199,
+        },
+        {
+          type: 'link',
+          path: '/Applications',
+          x: 451,
+          y: 199,
+        },
+      ],
+    },
+    mas: {
+      hardenedRuntime: false,
+      darkModeSupport: true,
+      provisioningProfile: 'build/embedded.provisionprofile',
+      category: 'public.app-category.productivity',
+      entitlements: 'build/entitlements.mas.plist',
+      entitlementsInherit: 'build/entitlements.mas.inherit.plist',
+      asarUnpack: [],
+    },
+    // extraResources: ['']
+  }, // electronBuilder参数
+};
+
+```
+### 自动更新
+打包之后，我们可以看到 `latest.yml`这个文件，它的作用就是为了告诉咱们的应用，目前最新的包的一些信息。是否自动更新就是通过这个文件来完成的。
+![image.png](https://cdn.nlark.com/yuque/0/2021/png/1447731/1619073964845-12210715-481a-4e0b-a284-3de74267af8d.png#clientId=u3e739ef8-080b-4&from=paste&height=178&id=u8d6f3abc&originHeight=178&originWidth=269&originalType=binary&size=8671&status=done&style=none&taskId=u2b0281ba-f616-4113-9b8b-79cc08c206e&width=269)
+为了实现自动更新，每次应用代码更新后，我们需要在package.json中修改version版本号
+
+为了在本地测试自动更新的效果，我们得把安装包放在某个服务上，所以之前提到的 `webServer.js` 就要开始表演了。
+这儿，我启动了一个node服务，使用 `express` 的静态文件托管能力，把 `dist_electron` 目录下打包好的文件都放在这个服务上
+```javascript
+const express = require('express');
+const path = require('path');
+
+const app = express();
+
+app.use(express.static(path.join(__dirname, 'dist_electron')));
+
+const port = 3004;
+
+app.listen(port, (err) => {
+  if (err) {
+    console.log(err, 'err');
+    return;
+  }
+  console.log(`Listening at http://dev.file.cn:${port}\n`);
+});
+```
+服务有了，那我们把一些最新的包放在上面， 搞一些旧版本的安装（旧版本：package.json更低的）
+
+
+以下是实现自动更新的关键代码
+在main.ts中
+```typescript
+function updateApp() {
+  // 自定义自动更新
+  const messageData = {
+    error: { status: -1, msg: '更新异常' },
+    checking: { status: 0, msg: '正在检查应用程序更新' },
+    update: { status: 1, msg: '检测到新版本，正在下载' },
+  };
+  autoUpdater.setFeedURL('http://dev.file.cn:3004'); // 更新包的根目录
+
+  // 发现新版本
+  autoUpdater.on('update-available', () => {
+    sendUpdateMessage(messageData.update);
+  });
+
+  // 更新下载进度事件
+  autoUpdater.on('download-progress', (progressObj) => {
+    mainWindow.webContents.send('download-progress', progressObj);
+  });
+
+  autoUpdater.on('update-downloaded', function () {
+    autoUpdater.quitAndInstall();
+  });
+
+  autoUpdater.checkForUpdates();
+
+  // autoUpdater.checkForUpdatesAndNotify(); // 使用系统自带的自动更新，会在通知栏中弹出一些消息，在应用关闭后即可安装新版本
+}
+
+let mainWindow
+
+mainWindow = new BrowserWindow({...})
+                                
+app.on('ready',()=>{
+	mainWindow.webContents.on('did-finish-load',()=>{
+  	updateApp()
+  })
+})
+```
+### 设置系统托盘
+最基础的设置
+```javascript
+// 设置系统托盘
+let tray;
+function createTray() {
+  tray = new Tray(getAssetPath('icon.ico')); // 系统托盘的图标
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '退出',
+      type: 'normal',
+      click() {
+        mainWindow.destroy();
+      },
+    },
+  ]);
+  tray.setToolTip('有赚客户端');
+  tray.setContextMenu(contextMenu);
+
+  tray.on('click', () => {
+    mainWindow.show();
+  });
+}
+```
+### 用户退出时，用插件形式实现 "完全退出or缩小到系统托盘" 的Modal
+这是一个简单的交互。如果需要用户选择，意味着当用户关闭时，得有一个提示框（modal）出现。问题来了，这个modal组件应该放在哪个位置呢？左思右想，好像放在哪儿都不太合适。因为umi的app.ts中不能写jsx代码。这时候我喝了一口水，突然想到，中午吃的猪肉饭还不错。不是不是，突然想到，有一次我分享过，用插件来写组件（@见见 知道有这么个东西就行）。可以用插件的方式来做这个modal。
+于是，代码就这样来了
+**主进程中监听用户点击关闭的事件：**
+```javascript
+mainWindow.on('close', (event) => {
+  event.preventDefault();
+  mainWindow.webContents.send('show-close-modal');
+});
+```
+**渲染进程中接收 'show-close-modal' 事件**
+```typescript
+import showCloseModal from '@/components/CloseModal/index';
+
+ipcRenderer.on('show-close-modal', () => {
+  showCloseModal();
+});
+```
+主角登场：CloseModal.tsx
+```jsx
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
+import { Modal, Radio, RadioChangeEvent } from 'antd';
+import { ipcRenderer } from 'electron';
+import styles from './index.module.less';
+
+type CloseModalType = {
+  show: () => void;
+  instance: HTMLDivElement | null;
+  unmount: () => void;
+} & React.FC;
+
+const CloseModal: CloseModalType = () => {
+  const [visible, setVisible] = useState<boolean>(true);
+  const [radioValue, setRadioValue] = useState<0 | 1>(0);
+
+  const onCancel = () => {
+    setVisible(false);
+    CloseModal.unmount();
+  };
+
+  const afterClose = () => {
+    console.log('after');
+  };
+
+  const onOk = () => {
+    onCancel();
+    const t = setTimeout(() => {
+      switch (radioValue) {
+        case 0:
+          ipcRenderer.send('hide-to-tray');
+          break;
+        case 1:
+          ipcRenderer.send('fully-close');
+          break;
+        default:
+          break;
+      }
+      clearTimeout(t);
+    }, 100);
+  };
+
+  const onChange = (e: RadioChangeEvent) => {
+    setRadioValue(e.target.value);
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      maskClosable={false}
+      closable={false}
+      onCancel={onCancel}
+      onOk={onOk}
+      okText="确认"
+      cancelText="取消"
+      title="确认关闭"
+      width={380}
+      destroyOnClose
+      afterClose={afterClose}
+    >
+      <Radio.Group
+        value={radioValue}
+        className={styles.radioBody}
+        onChange={onChange}
+      >
+        <Radio value={0}>最小化到系统托盘</Radio>
+        <Radio value={1}>退出有赚客户端</Radio>
+      </Radio.Group>
+    </Modal>
+  );
+};
+
+CloseModal.instance = null;
+
+CloseModal.show = function () {
+  if (!CloseModal.instance) {
+    CloseModal.instance = document.createElement('div');
+  }
+  document.body.appendChild(CloseModal.instance);
+  ReactDOM.render(<CloseModal />, CloseModal.instance);
+};
+
+CloseModal.unmount = function () {
+  const { instance } = CloseModal;
+  if (instance) {
+    ReactDOM.render(<></>, instance);
+    document.body.removeChild(instance);
+    CloseModal.instance = null;
+  }
+};
+
+const showCloseModal = CloseModal.show;
+
+export default showCloseModal;
+```
+CloseModal.tsx，导出的不是一个组件，而是一个 `show` 方法。就酱，可以在app.ts中使用组件了。

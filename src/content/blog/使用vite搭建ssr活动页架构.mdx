@@ -1,0 +1,326 @@
+---
+title: "使用vite搭建ssr活动页架构"
+date: "2022-07-04 16:15:33"
+draft: false
+tags:
+- vite
+- 服务端渲染
+---
+
+![](https://cdn.nlark.com/yuque/0/2022/jpeg/1447731/1655741310183-0acd2aa5-d4bc-4d34-9bbc-2d6e7b85742f.jpeg)
+
+# 前言
+最近接了个需求，重构公司的活动页项目。要实现：
+
+1. SEO良好
+2. MPA
+3. 启动速度快，构建速度快
+4. 前端工程化
+5. 浏览器兼容至少IE11
+
+基于这些需求，我选择了 vite + react + vite-plugin-ssr
+文章前面是ssr入门，老手请随意跳过，看最后即可
+
+# 入门SSR
+## 什么是SSR
+### 术语
+ssr，全名 `server side render`，服务端渲染
+csr，全名 `client side render`，客户端渲染
+spa，全名 `single page application`，单页面应用
+mpa，全名 `multi page application`，多页面应用
+## ssr的历史
+> 我的学习习惯是，不论学什么，先去了解它的历史背景。存在即合理，了解到为什么产生一个技术，能让我更容易去理解这门技术
+
+最初的网页渲染，前端三剑客：html + css + js，放在服务器上，静态部署就可以供用户访问了。
+后来随着网页复杂度上升，出现了jsp/ejs等等一系列模板语法，在服务端获取到数据后，把数据渲染到模板中，最后生成html返回给客户端，这是最原始的ssr。
+随着前端框架的诞生（ng/react/vue），越来越多同学开始使用框架开发web，这些前端框架的出现使得前后端开发解耦（csr的情况下），前端同学可以更充分的利用前端工程化等等新技术来健壮前端项目。而这种完全解耦的方式也带来了一些问题，比如非常不友好的SEO
+## csr的缺点
+让我们打开一个SPA网页（使用脚手架默认方式搭建），右键查看网页源代码
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1656299941924-ee92cedc-f915-4021-8635-bb95a0815cb5.png#clientId=u099ed91f-e21b-4&from=paste&height=52&id=u26e8aecb&originHeight=52&originWidth=528&originalType=binary&ratio=1&rotation=0&showTitle=false&size=5124&status=done&style=none&taskId=u455483b9-7c30-4863-9311-d1810fe9e55&title=&width=528)
+第一个问题：SEO极度不友好。 网页里面根本没有内容。爬虫最喜欢这种网页了，看一眼就走。
+SPA的工作方式就是使用`js`来动态渲染html，压力全部给到了客户端（浏览器）这边，正是因为这个，第二个问题也出现了：首屏的加载速度较慢
+## 为什么ssr的需求再次出现
+为了更好的SEO，为了更快的加载速度（服务端生成了首页静态页面，客户端可以直接展示，随后再用JS动态渲染）
+前端开发使用react/vue，可以熟练开发网页。而cra/vue-cli脚手架创建出来的模板默认是SPA。
+那么应该如何实现 “既要，还要”呢（前端框架/seo我全都要）
+## 如何实现基础ssr
+基于上面的问题，我们希望实现：
+
+- 查看网页源代码时，展示网页的内容
+
+既然需要服务端渲染，服务端用来执行vue/react这种js框架，那第一反应就是用nodejs来做服务端渲染，因为nodejs天然执行js代码
+客户端的话，用vue来做（react也行，只不过最近在熟悉vue3），vue3的话，体积比react更小，toC网站更好一些。react18针对ssr出了新api，开发者可以使用 `React.lazy` 和 `suspense` 实现懒加载，也提供了很好的用户体验：[https://github.com/reactwg/react-18/discussions/37](https://github.com/reactwg/react-18/discussions/37)
+下面是基础的ssr例子
+以下例子 请注意：客户端使用的是esm规范，服务端使用的是cjs
+如果希望统一使用esm，可以使用 [tsx](https://www.npmjs.com/package/tsx) 执行node脚本 或修改package.json => type: "module"
+### 创建服务端
+```typescript
+const express = require('express')
+
+const app = express()
+
+app.get('*', (req, res) => {
+  res.send('Hello World')
+})
+
+app.listen(4000, () => {
+  console.log('Server running at http://localhost:4000');
+})
+```
+启动服务后，打开浏览器 http:localhost:4000，即可看到内容
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1656309258694-fbf7d7f0-5a6b-4b0a-9c92-5f2ae45ccc25.png#clientId=u099ed91f-e21b-4&from=paste&height=131&id=u001c8251&originHeight=131&originWidth=325&originalType=binary&ratio=1&rotation=0&showTitle=false&size=1506&status=done&style=shadow&taskId=u951f7d1b-46ee-4f33-aec6-fc10e06dd44&title=&width=325)
+### 渲染vue
+服务端有了，但是是返回的string，我们想用vue来开发，尝试返回一个vue组件
+vue3提供了服务端渲染组件的方法，在 `vue/server-renderer`下
+```typescript
+const express = require('express')
+const { renderToString } = require('vue/server-renderer')
+const { createSSRApp } = require('vue')
+
+const app = express()
+
+app.get('*', (req, res) => {
+  const vue = createSSRApp({
+    data: () => ({ count: 1 }),
+    template: `<button @click="count++">{{ count }}</button>`,
+  })
+
+  renderToString(vue).then((html) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Document</title>
+    </head>
+    <body>
+      <div id="app">${html}</div>
+    </body>
+    </html>
+    `)
+  })
+})
+
+app.listen(4000, () => {
+  console.log('Server running at http://localhost:4000')
+})
+```
+此时打开页面，可以看到button了，但是此时页面是静态的，因为这个页面在服务端已经渲染好了，但在客户端没有注入vue
+右键查看网页源代码，可以看到button元素
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1656309809301-0b612c64-96d8-4d04-86a1-9e7a6914383a.png#clientId=u099ed91f-e21b-4&from=paste&height=221&id=ua89de076&originHeight=221&originWidth=557&originalType=binary&ratio=1&rotation=0&showTitle=false&size=5272&status=done&style=shadow&taskId=u7dc1c50b-6ccc-400e-bfc5-93617db7e85&title=&width=557)
+### 客户端渲染
+我们希望button的交互可以动起来，此时需要客户端来做渲染了
+```typescript
+const { createSSRApp } = require('vue')
+
+const vue = createSSRApp({
+  data: () => ({ count: 1 }),
+  template: `<button @click="count++">{{ count }}</button>`,
+})
+
+vue.mount('#app')
+```
+这段代码是否很眼熟，其实基本上跟服务端渲染返回的内容是一样的。所以**ssr的本质是服务端渲染静态html+客户端渲染js**
+此外，为了在浏览器中加载客户端文件，我们还需要：
+
+1. 在 `server.js`中添加 `server.use(express.static('.'))` 来托管客户端文件。这里要注意js执行顺序
+2. 将 `<script type="module" src="/client.js"></script>`添加到 HTML 外壳以加载客户端入口文件
+3. 通过在 HTML 外壳中添加 [Import Map](https://github.com/WICG/import-maps) 以支持在浏览器中使用 `import * from 'vue'`
+```typescript
+const express = require('express')
+const { renderToString } = require('vue/server-renderer')
+const { createSSRApp } = require('vue')
+
+const app = express()
+
+app.get('/', (req, res) => {
+  const vue = createSSRApp({
+    data: () => ({ count: 1 }),
+    template: `<button @click="count++">{{ count }}</button>`,
+  })
+
+  renderToString(vue).then((html) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Document</title>
+      <script type="importmap">
+      {
+        "imports": {
+          "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+        }
+      }
+      </script>
+      <script src="/client.js" type="module"></script>
+    </head>
+    <body>
+      <div id="app">${html}</div>
+    </body>
+    </html>
+    `)
+  })
+})
+
+app.use(express.static('.'))
+
+app.listen(4000, () => {
+  console.log('Server running at http://localhost:4000')
+})
+```
+此时打开本地地址，可以看到点击button数字变化了
+以上是最简单的ssr，在[vue官网](https://vuejs.org/guide/scaling-up/ssr.html)上可以找到这个例子。
+我们甚至没有去考虑前端的路由，状态管理 等等。一个完整的ssr还需要一系列构建。
+### 网页路由
+ssr的网页路由有两种方式
+
+1. 服务端路由
+2. 客户端路由
+#### 服务端路由
+服务端路由，就是利用 web框架的路由能力，匹配到某个路由时，返回对应的html代码，并且加载相应的客户端代码，比如：
+```typescript
+import express from 'express'
+
+const router = express.Router()
+
+router.get('/some-page', (req, res) => {
+  // 返回 some-page 的html
+  res.send(`<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Document</title>
+      <script src="/client.js" type="module"></script>
+    </head>
+    <body>
+      <div id="app">要渲染的html字符串</div>
+    </body>
+    </html>`)
+})
+```
+服务端路由跳转直接使用 `a标签`即可
+#### 客户端路由
+客户端路由的话，就要用到前端框架对应的路由库，vue-router / react-router 等
+可以参照[官方例子](https://v3.cn.vuejs.org/guide/ssr/introduction.html)做
+#### 比较两种方式
+服务端路由适合做页面零碎的项目，如活动页，每次跳转路由会刷新整个页面
+客户端路由适合做页面之间交互强的项目，如产品页，跳转路由不会刷新页面
+# 
+# 使用vite做ssr
+vue官方推荐了几个做ssr的例子，包括 `Nuxt`/ `Quasar`这种重框架，也有[ vite的轻框架](https://staging-cn.vuejs.org/guide/scaling-up/ssr.html#vite-ssr)。为了细粒度把控项目，我使用了 `vite`+ `vite-plugin-ssr`的方案来做
+## [vite-plugin-ssr](https://vite-plugin-ssr.com/)
+> Like Next.js / Nuxt but as do-one-thing-do-it-well Vite plugin.
+> 类似 Next/Nuxt 但是只做一件事并把它做好 的vite插件
+
+这个插件的文档写得非常详细，而且github上有许多例子。
+插件的具体功能我不赘述，各位可看官方文档，我在这里讲一下这个插件(v0.3x)的约定式路由的工作原理。以下 vite-plugin-ssr 简称为 vps
+### vps的约定式路由
+vps推荐使用文件夹名称作为路由，这种方式也是最方便的。活动页不存在页面之间的交互，所以我选择的默认方式。
+vps规定了一系列文件命名，作为开发/构建遍历的条件。以下4种命名会被vps收集，每种文件有其独特的作用。**我们不要随意以 **`**page.*****`**来命名文件**
+```typescript
+// Vite resolves globs with micromatch: https://github.com/micromatch/micromatch
+// Pattern `*([a-zA-Z0-9])` is an Extglob: https://github.com/micromatch/micromatch#extglobs
+export const pageFiles = {
+  //@ts-ignore
+  '.page': import.meta.glob('/**/*.page.*([a-zA-Z0-9])'),
+  //@ts-ignore
+  '.page.client': import.meta.glob('/**/*.page.client.*([a-zA-Z0-9])'),
+  //@ts-ignore
+  '.page.server': import.meta.glob('/**/*.page.server.*([a-zA-Z0-9])'),
+  //@ts-ignore
+  '.page.route': import.meta.glob('/**/*.page.route.*([a-zA-Z0-9])'),
+}
+```
+### dev阶段
+
+- node启动服务端server，调用 vps 的`createPageRenderer`，返回了 `renderPage`方法，我们调用 `renderPage` 即可获取到服务端渲染后的内容。[源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/createPageRenderer.ts#L20-L21)
+- vps在vite的dev阶段，设置了 `optimizeDeps`做依赖预构建的优化。(咱们也可以参考这块源码对vite项目进行一些优化)。 [源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/plugin/dev.ts)
+### build阶段
+
+- 针对 client / server 分别打包。如果使用约定式路由，会根据上文讲到的遍历条件，遍历所有文件后，把所有的 `.page`文件设置为 input 的每一项（MPA）。[源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/plugin/build.ts)
+- 生成vps的manifest文件，其命名为 `vite-plugin-ssr.json`，里面会存放一些vps的基本信息。[源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/plugin/manifest.ts)
+- 生成单个的server bundled代码，供部署使用，名为 `importBuild.js`。[源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/plugin/getImportBuildCode.ts)
+- 生成 package.json。 如果我们指定打包为es，则package.json中的type = module，否则为 commonjs。[源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/plugin/packageJsonFile.ts)
+- 把 `page.server`的代码转为固定的一个导出语句，用来判断 `page.server`是否有导出。[源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/plugin/transformPageServerFiles.ts)
+- 移除vite的内置钩子 `vite:ssr-require-hook`（我们如果想魔改插件钩子，可以参考这种方法）[源码地址](https://github.com/brillout/vite-plugin-ssr/blob/HEAD/vite-plugin-ssr/node/plugin/removeRequireHookPlugin.ts)
+
+
+## 项目大了之后，打包速度慢该怎么办？
+做活动页，每个页面之间是没有关联的，其实我希望打包是增量式的打包，但是如果公共文件改变了，也无法避免全量打包。所以如果能做到缓存打包文件，就可以提升打包速度。
+理想美好，现实往往相反。rollup2并不支持content hash，但是好消息是[rollup3](https://github.com/rollup/rollup/pull/4543)支持了并且会在最近发布
+目前我们只能用hack的方式去实现content hash，比如使用node的 `crypto`模块来做md5hash
+```typescript
+import { createHash } from 'crypto'
+import type { PreRenderedChunk } from 'rollup'
+
+export function getContentHash(chunk: string | Uint8Array) {
+  return createHash('md5').update(chunk).digest('hex').substring(0, 6)
+}
+
+export function getHash(chunkInfo: PreRenderedChunk) {
+  return getContentHash(
+    Object.values(chunkInfo.modules)
+      .map((m) => m.code)
+      .join(),
+  )
+}
+```
+ 然后在rollup的output中设置文件的命名
+```json
+rollupOptions: {
+  treeshake: 'smallest',
+  output: {
+    format: 'es',
+    assetFileNames: (assetInfo) => {
+      let extType = path.extname(assetInfo.name || '').split('.')[1]
+      if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType!)) {
+          extType = 'img'
+          }
+      const hash = getContentHash(assetInfo.source)
+      return `assets/${extType}/[name].${hash}.[ext]`
+    },
+    
+    chunkFileNames: (chunkInfo) => {
+      const server = chunkInfo.name.endsWith('server') ? 'server-' : ''
+      const name = chunkInfo.facadeModuleId?.match(/src\/pages\/(.*?)\//)?.[1] || chunkInfo.name
+      
+      if (chunkInfo.isDynamicEntry || chunkInfo.name === 'vendor') {
+        const hash = getHash(chunkInfo)
+        return `assets/js/${name}-${server}${hash}.chunk.js`
+      } else {
+        return `assets/js/${name}-${server}[hash].chunk.js`
+      }
+    },
+    entryFileNames: (chunkInfo) => {
+      if (chunkInfo.name === 'pageFiles') {
+        return '[name].js'
+      }
+      const hash = getHash(chunkInfo)
+      return `assets/js/entry-${hash}.js`
+    },
+  },
+},
+```
+
+做了content-hash后，打包速度会有非常大的提升，因为rollup其实有个[cache机制](https://rollupjs.org/guide/en/#build-hooks)，针对cache的文件不会transform，而正好transform是非常耗时的一步。
+我尝试了打包1000个文件，耗时40+s，在我的接受范围内
+## 快速创建页面模板
+活动页面会有比较多相似的地方，所以直接根据模板来创建页面代码，开发效率又高一点（又可以摸鱼了）。[代码地址](https://github.com/hemengke1997/vite-react-ssr-boilerplate/blob/master/scripts/dev.ts)
+## 做得不好的地方
+记录两个ssr探索过程中，我想实现，但最后没有实现的
+
+- 按需打包。因为做活动页，按理说架构应该是按需打包，做完一个页面打包一个页面。尝试了用monorepo，这样打包的话，那么就要启动多个服务来监听。不用monorepo的话，就需要在rollup打包的过程中，设置outdir，然后打包在指定目录中。同理，也需要启动多个服务。要做到只启动一个服务，就得每次打包服务端都全量打包，客户端按需打包，那么服务端和客户端之间相互引用的文件路径就很难去控制了。之所以想做按需打包，其实就是担心以后项目大了打包慢。如果rollup的打包性能可以跟上的话，在接受范围内的话，其实是不需要做按需打包的
+- 按需启动。启动指定路由文件，而不去遍历整个项目。这个得等vps0.4了
+
+## 部署
+部署的话，打算使用docker来做，下篇文章再讲
+## 源码地址
+[react + ssr](https://github.com/hemengke1997/vite-react-ssr-boilerplate)
+[vue3 + ssr](https://github.com/hemengke1997/vite-react-ssr-boilerplate/tree/vue)

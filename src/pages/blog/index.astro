@@ -10,7 +10,9 @@ const posts = (await getCollection('blog'))
   .filter((post) => !post.data.draft)
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
 
-const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort((a, b) => a.localeCompare(b))
+const tags = [...new Set(posts.flatMap((post) => post.data.tags).map((t) => t.toLowerCase()))].sort((a, b) =>
+  a.localeCompare(b),
+)
 ---
 
 <PageLayout title={BLOG.TITLE} description={BLOG.DESCRIPTION}>

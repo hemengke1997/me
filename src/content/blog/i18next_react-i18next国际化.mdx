@@ -1,0 +1,104 @@
+---
+title: "i18next、react-i18next国际化"
+date: "2022-05-01 22:46:59"
+draft: false
+tags:
+- react
+- i18n
+---
+
+## 安装必要的包
+```bash
+pnpm add i18next react-i18next
+```
+## 新建locale/index.ts文件
+```typescript
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+import enUS from './en_US';
+import zhCN from './zh_CN';
+
+export enum LanguageType {
+  ZH_CN = 'zh-CN',
+  EN_US = 'en-US',
+}
+
+export const resources = {
+  [LanguageType.EN_US]: {
+    ...enUS,
+  },
+  [LanguageType.ZH_CN]: {
+    ...zhCN,
+  },
+} as const;
+
+i18n
+// detect user language
+// learn more: https://github.com/i18next/i18next-browser-languageDetector
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+  debug: true,
+  resources,
+  ns: Object.keys(enUS),
+  nsSeparator: '.',
+  keySeparator: false,
+  // if you're using a language detector, do not define the lng option
+  // lng: LanguageType.EN_US, // language to use, more information here: https://www.i18next.com/overview/configuration-options#languages-namespaces-resources
+  // you can use the i18n.changeLanguage function to change the language manually: https://www.i18next.com/overview/api#changelanguage
+  interpolation: {
+    escapeValue: false, // react already safes from xss
+  },
+  // If the language chosen by the user is not supported, render the interface in English
+  fallbackLng: [LanguageType.EN_US],
+  // i18next-browser-languagedetector
+  // https://github.com/i18next/i18next-browser-languageDetector
+  detection: {
+    order: ['querystring', 'localStorage', 'navigator', 'sessionStorage', 'cookie'],
+    caches: ['localStorage', 'sessionStorage', 'cookie'],
+    lookupQuerystring: 'lng',
+  },
+});
+
+i18n.on('missingKey', (_lngs, _namespace, key, _res) => {
+  console.log(key, 'missingKey');
+});
+
+export default i18n;
+
+```
+## 补充typescript语法提示
+```typescript
+import { resources, LanguageType } from '.';
+
+type a = typeof resources[LanguageType.EN_US];
+
+/**
+ * @see https://react.i18next.com/latest/typescript
+ */
+// react-i18next versions higher than 11.11.0
+declare module 'react-i18next' {
+  interface CustomTypeOptions {
+    resources: typeof resources[LanguageType.EN_US];
+    nsSeparator: '.';
+    keySeparator: false;
+    defaultNS: keyof typeof resources[LanguageType.EN_US][0];
+  }
+}
+```
+## 使用方法
+在入口文件直接 `import'./locale/index';`
+
+## 配合vscode插件来获得更好的开发体验
+### 安装 i18n ally 插件
+### 在 setting.json中配置
+```json
+  "i18n-ally.localesPaths": ["src/locale"],
+  "i18n-ally.keystyle": "flat",
+  "i18n-ally.enabledParsers": ["ts", "json"],
+  "i18n-ally.enabledFrameworks": ["react", "i18next"],
+  "i18n-ally.namespace": true,
+  // https://github.com/lokalise/i18n-ally/issues/656
+  "i18n-ally.pathMatcher": "{locale}/{namespaces}.{ext}",
+```

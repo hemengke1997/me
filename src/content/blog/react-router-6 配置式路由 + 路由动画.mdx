@@ -1,0 +1,349 @@
+---
+title: "react-router-6 配置式路由 + 路由动画"
+date: "2022-05-18 15:48:26"
+draft: false
+tags:
+- react
+- react-router
+---
+
+# 目的
+我们需要做的，其实就是实现一遍react-router-config。把树状router数组对象转化成JSX就行了。
+```typescript
+import { RouteObject } from 'react-router-dom';
+
+interface RoutesItemType extends RouteObject {
+  redirect?: string;
+  component?: FunctionalImportType;
+  meta?: MetaType;
+  children?: RoutesItemType[];
+}
+```
+```typescript
+import { RoutesItemType } from './router';
+
+const routes: RoutesItemType[] = [
+  {
+    path: '/',
+    redirect: '/a',
+  },
+  {
+    path: '/a',
+    component: () => import('@/pages/A'),
+  },
+  {
+    path: '/b',
+    component: () => import('@/pages/b'),
+  },
+];
+
+export default routes;
+```
+如以上代码的routes数组，是我们在react-router-dom-v5中写得比较多的，顺带一提，umi中开发者也是写配置式路由，umi内部也对路由做了一些处理，更加细粒度，更偏向于后台项目，
+[GitHub1s](https://github1s.com/umijs/umi-next/tree/master/packages/renderer-react/src)
+
+# 实现
+## 路由工具类
+### 核心方法：将配置式路由转为useRoutes入参需要的数据结构类型
+```typescript
+import Nav from './Navigator';
+
+type RoutesType = RoutesItemType[];
+
+interface MetaType {
+  [propName: string]: any;
+}
+
+type OnRouteBeforeResType = string | void;
+
+interface OnRouteBeforeType {
+  (payload: { pathname: string; meta: MetaType }): OnRouteBeforeResType | Promise<OnRouteBeforeResType>;
+}
+
+export class RouteUtil {
+  routes: RoutesType;
+  onRouteBefore?: OnRouteBeforeType;
+  suspense: JSX.Element;
+    
+ /**
+  * @description: 路由配置列表数据转换成useRoutes接收的数组类型
+  */
+  createClientRoutes(routes: RoutesType) {
+    const useRoutesList: RouteObject[] = [];
+    const routeList = cloneDeep(routes);
+    routeList.forEach((route) => {
+      const item = cloneDeep(route);
+      if (item.path === undefined) {
+        return;
+      }
+      if (item.redirect) {
+        item.element = <Nav to={item.redirect} replace />;
+      } else if (item.component) {
+        item.element = this.lazyLoad(item.component, item.meta || {});
+      }
+
+      if (item.children) {
+        item.children = this.createClientRoutes(item.children);
+      }
+
+      useRoutesList.push(this.deleteSelfProperty(item));
+    });
+    return useRoutesList;
+  }
+  
+  /**
+   * @description 删除路由对象中useRoutes不需要的属性
+   */
+  private deleteSelfProperty(r: RoutesItemType) {
+    delete r.redirect;
+    delete r.component;
+    delete r.meta;
+
+    return r;
+  }
+  
+  /**
+   * @description: 路由懒加载
+   */
+  private lazyLoad(importFn: FunctionalImportType, meta: MetaType) {
+    const Component = React.lazy(importFn);
+    const lazyElement = (
+      <React.Suspense fallback={this.suspense}>
+        <Component _meta={meta} />
+      </React.Suspense>
+    );
+    return <Guard element={lazyElement} meta={meta} onRouteBefore={this.onRouteBefore} />;
+  }
+}
+```
+## 路由守卫组件
+```typescript
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { ReactElementType, MetaType, OnRouteBeforeType, OnRouteBeforeResType } from './router';
+
+function getDataType(data: any): string {
+  return (Object.prototype.toString.call(data).match(/\s(\w+)\]/) as string[])[1];
+}
+
+// 路由页面缓存
+let cache: ReactElementType | null = null;
+
+function Guard({
+  element,
+  meta,
+  onRouteBefore,
+}: {
+  element: ReactElementType;
+  meta: MetaType;
+  onRouteBefore?: OnRouteBeforeType;
+}) {
+  meta = meta || {};
+
+  const { pathname } = useLocation();
+
+  const navigate = useNavigate();
+
+  if (onRouteBefore) {
+    // 命中缓存
+    if (cache === element) {
+      return element;
+    }
+    const pathRes = onRouteBefore({ pathname, meta });
+    if (getDataType(pathRes) === 'Promise') {
+      (pathRes as Promise<OnRouteBeforeResType>).then((res: OnRouteBeforeResType) => {
+        if (res && res !== pathname) {
+          navigate(res, { replace: true });
+        }
+      });
+    } else {
+      if (pathRes && pathRes !== pathname) {
+        element = <Navigate to={pathRes as string} replace />;
+      }
+    }
+  }
+
+  cache = element;
+  return element;
+}
+
+export default Guard;
+```
+## 声明文件
+```typescript
+import { RouteObject } from 'react-router-dom';
+
+interface MetaType {
+  [propName: string]: any;
+}
+
+interface FunctionalImportType {
+  (): any;
+}
+
+type ReactElementType = JSX.Element;
+
+interface RoutesItemType extends RouteObject {
+  redirect?: string;
+  component?: FunctionalImportType;
+  meta?: MetaType;
+  children?: RoutesItemType[];
+}
+
+type RoutesType = RoutesItemType[];
+
+type OnRouteBeforeResType = string | void;
+
+interface OnRouteBeforeType {
+  (payload: { pathname: string; meta: MetaType }): OnRouteBeforeResType | Promise<OnRouteBeforeResType>;
+}
+
+interface RouterPropsType {
+  routes: RoutesType;
+  onRouteBefore?: OnRouteBeforeType;
+  suspense?: ReactElementType;
+}
+
+interface RouterType {
+  (payload: RouterPropsType): JSX.Element;
+}
+
+export type {
+  MetaType, // 路由meta字段类型
+  FunctionalImportType, // 懒加载函数式导入组件的类型
+  ReactElementType, // react组件实例元素类型
+  RoutesItemType, // 路由配属数组项类型
+  RoutesType, // 路由配置数组类型
+  OnRouteBeforeResType, // 路由拦截函数（实际有效使用的）返回值类型
+  OnRouteBeforeType, // 路由拦截函数类型
+  RouterPropsType, // Router主组件props类型
+  RouterType, // Router主组件类型
+};
+
+export default RouterType;
+```
+# 使用
+```typescript
+import { useRoutes } from 'react-router-dom';
+import { RouterPropsType } from './routes';
+import { RouterUtil } from './routerUtil';
+
+function CreateRoutes({ routes, onRouteBefore, suspense }: RouterPropsType) {
+  const util = new RouterUtil({
+    routes,
+    onRouteBefore,
+    suspense,
+  });
+  const reactRoutes = util.createClientRoutes(routes);
+
+  const elements = useRoutes(reactRoutes);
+
+  return elements;
+}
+
+
+
+function App() {
+  <CreateRoutes routes={routes} />
+}
+```
+# 注意事项
+
+- react-router 的嵌套路由父级使用懒加载方式引用公共组件时存在一些问题，例如切换子路由时父级公共组件会重新渲染。建议改用官方element属性方式
+```typescript
+import PageLayout from '@/components/PageLayout' // 静态引入，不要使用import函数
+
+{
+  path: '/',
+  element: <PageLayout />, // 父级的公共组件使用element配置
+  children: [
+    ... // 子级可以继续使用component配置
+  ]
+},
+```
+# 路由动画
+[Introduction | Framer for Developers](https://www.framer.com/docs/introduction/)
+## Bug
+```jsx
+export function Navigate({ to, replace, state }: NavigateProps): null {
+  invariant(
+    useInRouterContext(),
+    // TODO: This error is probably because they somehow have 2 versions of
+    // the router loaded. We can help them understand how to avoid that.
+    `<Navigate> may be used only in the context of a <Router> component.`
+  );
+
+  warning(
+    !React.useContext(NavigationContext).static,
+    `<Navigate> must not be used on the initial render in a <StaticRouter>. ` +
+      `This is a no-op, but you should modify your code so the <Navigate> is ` +
+      `only ever rendered in response to some user interaction or state change.`
+  );
+
+  let navigate = useNavigate();
+  React.useEffect(() => {
+    navigate(to, { replace, state });
+  });
+
+  return null;
+}
+```
+组件源码高亮部分，没有添加effect依赖，在搭配路由动画使用时，会走进死循环，自己写一个navigate组件就行：
+```jsx
+import useEffectOnce from '@/hooks/useEffectOnce';
+import { useNavigate } from 'react-router-dom';
+
+const Nav: React.FC<{
+  to: string;
+  replace: boolean;
+}> = (props) => {
+  const { to, replace } = props;
+  const nav = useNavigate();
+  useEffectOnce(() => {
+    nav(to, { replace });
+  }, []);
+
+  return null;
+};
+
+export default Nav;
+
+```
+```jsx
+import { AnimatePresence, motion } from 'framer-motion';
+
+const AnimateRouteWrapper = ({ children }: PropsWithChildren<Record<string, any>>) => {
+  return (
+    <motion.div
+      initial={{
+        translateX: 8,
+          opacity: 0,
+      }}
+      animate={{ translateX: 0, opacity: 1 }}
+      exit={{ translateX: -8, opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      >
+      {children}
+    </motion.div>
+  );
+};
+
+function CreateRoutes({ routes, onRouteBefore, suspense }: RouterPropsType) {
+  const util = new RouterUtil({
+    routes,
+    onRouteBefore,
+    suspense,
+  });
+  const reactRoutes = util.createClientRoutes(routes);
+
+  const location = useLocation();
+
+  const elements = useRoutes(reactRoutes, location);
+
+  return (
+    <AnimatePresence exitBeforeEnter initial={false}>
+      <AnimateRouteWrapper key={location.pathname}>{elements}</AnimateRouteWrapper>
+    </AnimatePresence>
+  );
+}
+```
+

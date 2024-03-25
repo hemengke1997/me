@@ -1,0 +1,488 @@
+---
+title: "一个移动端项目的优化"
+date: "2021-01-26 10:55:02"
+draft: false
+tags:
+- 其他
+---
+
+#### 工欲善其事必先利其器
+
+首先需要安装分析打包体积的插件
+
+```vue
+vue add webpack-bundle-analyzer
+
+npm run build --report
+```
+
+`webpack-bundle-analyzer` 配置
+
+```javascript
+pluginOptions: {
+    webpackBundleAnalyzer: {
+      openAnalyzer: false,
+      analyzerPort: 9527,
+      //  所有配置
+	  //  可以是`server`，`static`或`disabled`。
+      //  在`server`模式下，分析器将启动HTTP服务器来显示软件包报告。
+      //  在“静态”模式下，会生成带有报告的单个HTML文件。
+      //  在`disabled`模式下，你可以使用这个插件来将`generateStatsFile`设置为`true`来生成Webpack Stats JSON文件。
+      analyzerMode: 'server',
+      //  将在“服务器”模式下使用的主机启动HTTP服务器。
+      analyzerHost: '127.0.0.1',
+      //  将在“服务器”模式下使用的端口启动HTTP服务器。
+      analyzerPort: 8888, 
+      //  路径捆绑，将在`static`模式下生成的报告文件。
+      //  相对于捆绑输出目录。
+      reportFilename: 'report.html',
+      //  模块大小默认显示在报告中。
+      //  应该是`stat`，`parsed`或者`gzip`中的一个。
+      //  有关更多信息，请参见“定义”一节。
+      defaultSizes: 'parsed',
+      //  在默认浏览器中自动打开报告
+      openAnalyzer: true,
+      //  如果为true，则Webpack Stats JSON文件将在bundle输出目录中生成
+      generateStatsFile: false, 
+      //  如果`generateStatsFile`为`true`，将会生成Webpack Stats JSON文件的名字。
+      //  相对于捆绑输出目录。
+      statsFilename: 'stats.json',
+      //  stats.toJson（）方法的选项。
+      //  例如，您可以使用`source：false`选项排除统计文件中模块的来源。
+      //  在这里查看更多选项：https：  //github.com/webpack/webpack/blob/webpack-1/lib/Stats.js#L21
+      statsOptions: null,
+      logLevel: 'info' // 日志级别。可以是'信息'，'警告'，'错误'或'沉默'。
+    }
+}
+```
+
+`vue/cli` 自带可视化命令： `vue ui`  可以方便地查看打包的情况以及 `webpack` 配置
+
+#### 引入 `cdn`
+思路： 将一些长期不变的依赖或太大的依赖，改为 `cdn` 方式引入，可减少打包体积
+优点：载入速度增快，打包体积减小
+缺点：1.本地开发使用 `cdn` 时，报错可能看不懂。2. `cdn` 有可能会挂
+实现方式：
+
+   - 第一种： 手动在 `index.html` 中加入 `cdn` 链接代码
+```html
+<script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"</script>
+```
+
+   - 第二种： `webpack` 中配置 `cdn`，然后在 `index.html` 中循环生成
+```javascript
+// vue.config.js
+const cdn = {
+    externals: {
+        vue: 'Vue',
+        vuex: 'Vuex',
+        'vue-router': 'VueRouter',
+        moment: 'moment',
+        echarts: 'echarts',
+        nprogress: 'NProgress',
+        'v-charts': 'VCharts'
+    },
+    css: [
+        'https://cdn.jsdelivr.net/npm/v-charts/lib/style.min.css'
+    ],
+    js:[
+      'https://cdn.jsdelivr.net/npm/moment@2.18.1/min/moment.min.js'
+    ],
+}
+
+module.exports = {
+    chainWebpack: config => {
+        // ============注入cdn start============
+        config.plugin('html').tap(args => {
+            // 生产环境或本地需要cdn时，才注入cdn
+            if (isProduction || devNeedCdn) args[0].cdn = cdn
+            return args
+        })
+        // ============注入cdn end============
+        
+    },
+    configureWebpack: config => {
+        // 用cdn方式引入，则构建时要忽略相关资源
+        if (isProduction || devNeedCdn) config.externals = cdn.externals
+    }
+}
+```
+```html
+  <head>
+    <!-- 使用CDN的CSS文件 -->
+    <% for (var i in htmlWebpackPlugin.options.cdn &&
+    htmlWebpackPlugin.options.cdn.css) { %>
+    <link
+            href="<%= htmlWebpackPlugin.options.cdn.css[i] %>"
+            rel="stylesheet"
+    />
+    <% } %>
+    <!-- 使用CDN的CSS文件 -->
+  </head>
+        
+   ....
+        
+   <!-- 使用CDN的JS文件 -->
+    <% for (var i in htmlWebpackPlugin.options.cdn &&
+    htmlWebpackPlugin.options.cdn.js) { %>
+    <script src="<%= htmlWebpackPlugin.options.cdn.js[i] %>"></script>
+    <% } %>
+```
+
+解决缺点：
+
+   - 本地开发还是使用本地依赖，为了避免打包时将依赖打入，在 `webpack` 的externals中配置外部包数组
+```javascript
+externals: {
+	vue: 'Vue',
+	'vue-rotuer': 'VueRouter',
+	jquery: 'jQuery'
+}
+```
+
+      - 上面的例子。属性名称是 `vue-rotuer`，表示应该排除 `import VueRouter from 'vue-rotuer'` 中的 `vue-rotuer`  模块。为了替换这个模块，`VueRouter` 的值将被用来检索一个全局的 `VueRouter` 变量。换句话说，当设置为一个字符串时，它将被视为全局的
+      - 注意事项： `cdn` 版本需跟本地依赖版本一致
+
+#### 图片压缩
+插件： [`image-webpack-loader`](https://github.com/tcoopman/image-webpack-loader)
+```javascript
+//vue.config.js
+
+chainWebpack: (config)=>{
+ 	  // 图片压缩
+      config.module
+        .rule('images')
+        .use('file-loader')
+        .loader('file-loader')
+        .end()
+        .use('image-webpack-loader')
+        .loader('image-webpack-loader')
+        .options({
+          bypassOnDebug: true
+        })
+    	.end()
+    	.use('url-loader')
+        .loader('url-loader')
+        .tap(options => Object.assign(options, { limit: 3072 }))
+       
+}
+```
+图片压缩在本地是可行的，但是在我司服务器上会出问题，所以目前是手动压缩图片
+
+   - 蓝湖下载切图的时候选择压缩图片
+   - `tinypng` 压缩
+#### 正式环境关闭 `sourcemap`
+
+```javascript
+productionSourceMap: false,
+```
+
+#### 移除 `prefetch`、`preload`
+
+以上两个插件是 `vue` 自带的插件，会影响首屏的渲染速度，删除方法：
+
+```javascript
+// vue.config.js
+chainWebpack: (config) => {
+	config.plugins.delete('prefetch')
+	config.plugins.delete('preload')
+}
+```
+
+#### 禁止缓存
+
+推了测试之后，产品总是说：还没推测试吗？ 哦 是浏览器缓存了。这样不行哦，如果用户的浏览器也缓存了，那岂不是更新等于没更新了。
+
+禁止缓存很简单，给打包之后的js文件加一些后缀，一般是用hash
+
+```javascript
+chainWebpack: (config) => {
+    config.output.filename('js/[name].[hash:8].js').chunkFilename('js/[name].[hash:8].js')
+}
+```
+
+#### 分包
+目的： 把一些重复打包的文件，打包为一个，避免重复打包。把一些长期不变化的包分到一个包中，利于缓存。
+```javascript
+config
+    .optimization.splitChunks({
+    chunks: 'all',
+    cacheGroups: {
+        // mand-mobile按需引入 不需要打包整个
+        // mandMobile: {
+        //   name: 'chunk-mandMobile',
+        //   priority: 15,
+        //   test: /[\\/]node_modules[\\/]_?mand-mobile(.*)/
+        // },
+        //涉及vue的模块
+        vue: {
+            test: /[\\/]node_modules[\\/](vue|vuex|vue-router)/,
+            priority: 10,
+            name: 'vue',
+            reuseExistingChunk: true
+        },
+        vendors: {
+            test: /[\\/]node_modules[\\/]/,
+            priority: 9,
+            name: 'vendors',
+            reuseExistingChunk: true
+        },
+
+        cityJson: {
+            name: 'chunk-city.json',
+            test: resolve('src/utils/city.json'),
+            minChunks: 1, // 引入的次数大于等于1时才进行代码分割
+            priority: 8, // 优先级。 根据优先级决定打包到哪个组里,打包到优先级高的组里。
+            reuseExistingChunk: true, // //如果一个模块已经被打包过了,那么再打包时就忽略这个上模块
+        },
+    }
+})
+```
+
+
+#### 完整配置
+```javascript
+const path = require('path')
+const poststylus = require('poststylus')
+const pxtorem = require('postcss-pxtorem')
+
+
+// 解决内存泄漏的问题
+// https://github.com/vuejs/vue-cli/issues/4352
+require('events').EventEmitter.defaultMaxListeners = 50;
+
+
+process.env.VUE_APP_BASE_URL_TYPE = process.env.NODE_ENV
+const notDev = process.env.NODE_ENV !== 'development'
+const isProd = process.env.NODE_ENV === 'production'
+
+const resolve = file => path.join(__dirname, file)
+
+//代理配置
+const baseUrl = '/xdnphb/';
+const proxyData = {
+  '/api/custom/yzPlatform/oss': {
+    target: 'http://test.api.newrank.cn',
+    changeOrigin: true,
+    '^/api/custom/yzPlatform/oss': '/api/custom/yzPlatform/oss',
+  },
+};
+const urlList = ['common', 'ade', 'user', 'pay', 'aly', 'knowledgepay', 'account', 'login', 'flowPacket'];
+for (let i = 0, len = urlList.length; i < len; i++) {
+  let str = urlList[i];
+  let proxyPath = baseUrl + str;
+  let proxyRewrite = '^' + proxyPath;
+
+  if (str !== 'common' && str !== 'account') {
+    proxyData[proxyPath] = {
+      target: 'http://test.a.newrank.cn' + proxyPath,
+      changeOrigin: true,
+      pathRewrite: {}
+    };
+  } else {
+    proxyData[proxyPath] = {
+      target: 'http://test.main.newrank.cn' + proxyPath,
+      changeOrigin: true,
+      pathRewrite: {}
+    };
+  }
+
+  proxyData[proxyPath].pathRewrite[proxyRewrite] = '';
+}
+
+
+module.exports = {
+  // 基本路径
+  publicPath: '/taskmobile/',
+  // 构建生产环境时，生产环境的文件目录
+  outputDir: resolve('dist/taskmobile'),
+  // eslint-loader 是否在保存的时候检查
+  lintOnSave: false,
+  chainWebpack: (config) => {
+    // config
+    //   .plugin('webpack-bundle-analyzer')
+    //   .use(require('webpack-bundle-analyzer').BundleAnalyzerPlugin)
+    config.module
+      .rule('svg')
+      .exclude.add(resolve('src/assets/svgIcon'))
+      .end()
+    config.module
+      .rule('icons')
+      .test(/\.svg$/)
+      .include.add(resolve('src/assets/svgIcon'))
+      .end()
+      .use('svg-sprite-loader')
+      .loader('svg-sprite-loader')
+      .end()
+    if (isProd) {
+      // 修改minicss插件 (忽略css引入顺序警告)
+      config.plugin('extract-css').tap(options => {
+        options[0].ignoreOrder = true
+        return options
+      })
+    }
+    if (notDev) {
+      // 图片压缩
+      // config.module
+      //   .rule('images')
+      //   .use('file-loader')
+      //   .loader('file-loader')
+      //   .end()
+      //   .use('image-webpack-loader')
+      //   .loader('image-webpack-loader')
+      //   .options({
+      //     mozjpeg: {
+      //       enabled: false
+      //     },
+      //     gifsicle: {
+      //       enabled: false
+      //     },
+      //     optipng: {
+      //       enabled: false,
+      //     },
+      //     pngquant: {
+      //       enabled: false,
+      //     },
+      //     svgo: {
+      //     }
+      //   })
+      // 先处理资源， 再压缩图片 
+      config.module
+        .rule("images")
+        .use('url-loader')
+        .loader('url-loader')
+        .tap(options => Object.assign(options, { limit: 3072 }))
+
+
+
+      // 优化首屏渲染速度
+      // 移除 prefetch 插件
+      config.plugins.delete('prefetch')
+      // 移除 preload 插件
+      config.plugins.delete('preload');
+      // 禁止浏览器缓存
+      //设置打包后js目录，并添加hash
+      config.output.filename('js/[name].[hash:8].js').chunkFilename('js/[name].[hash:8].js')
+
+      config
+        .optimization.splitChunks({
+          chunks: 'all',
+          cacheGroups: {
+            // mand-mobile按需引入 不需要打包整个
+            // mandMobile: {
+            //   name: 'chunk-mandMobile',
+            //   priority: 15,
+            //   test: /[\\/]node_modules[\\/]_?mand-mobile(.*)/
+            // },
+            //涉及vue的模块
+            vue: {
+              test: /[\\/]node_modules[\\/](vue|vuex|vue-router)/,
+              priority: 10,
+              name: 'vue',
+              reuseExistingChunk: true
+            },
+            vendors: {
+              test: /[\\/]node_modules[\\/]/,
+              priority: 9,
+              name: 'vendors',
+              reuseExistingChunk: true
+            },
+
+            cityJson: {
+              name: 'chunk-city.json',
+              test: resolve('src/utils/city.json'),
+              minChunks: 1, // 引入的次数大于等于1时才进行代码分割
+              priority: 8, // 优先级。 根据优先级决定打包到哪个组里,打包到优先级高的组里。
+              reuseExistingChunk: true, // //如果一个模块已经被打包过了,那么再打包时就忽略这个上模块
+            },
+          }
+        })
+    }
+
+
+  },
+  configureWebpack: (config) => {
+    if (notDev) {
+      // 正式环境禁止console/debugger
+      const terserWebpackPlugin = config.optimization.minimizer[0];
+      const { terserOptions } = terserWebpackPlugin.options;
+      terserOptions.compress.drop_console = true;
+      terserOptions.compress.drop_debugger = true;
+    }
+
+    // if (notDev) { // 开发环境配置
+    //   config.devtool = 'cheap-module-eval-source-map'
+    // } else { // 生产环境配置
+
+    //     //生产环境 文件开启Gzip
+    //     config.plugins.push(
+    //         new CompressionPlugin({
+    //             filename: '[path].gz[query]',
+    //             algorithm: 'gzip',
+    //             test: new RegExp('\\.(' + ['js', 'css'].join('|') + ')$', ),
+    //             threshold: 10240,
+    //             minRatio: 0.8,
+    //         })
+    //     )
+    // }
+    // 开发生产共同配置
+    Object.assign(config, {
+      resolve: {
+        extensions: ['.js', '.json', '.vue'],
+        alias: {
+          '@': resolve('src'),
+        }
+      },
+      externals: {
+        'moment': 'moment',
+        'echarts': 'echarts'
+      }
+    })
+  },
+  css: {
+    loaderOptions: {
+      sass: {
+        prependData: '@import "@/assets/scss/variable.scss";'
+      },
+      stylus: {
+        use: [
+          poststylus([
+            pxtorem({
+              rootValue: 100,
+              propWhiteList: ['dontvw'],
+              minPixelValue: 2
+            }),
+            'autoprefixer'
+          ])
+        ],
+        import: [
+          resolve('./src/assets/theme/theme.custom')
+        ]
+      },
+      postcss: {
+        plugins: [
+          require('postcss-pxtorem')({
+            rootValue: 100,
+            propWhiteList: [],
+            minPixelValue: 2
+          }),
+          require('autoprefixer')()
+        ]
+      }
+    }
+  },
+  devServer: {
+    open: process.platform === 'darwin',
+    host: 'dev.a.newrank.cn',
+    port: 8091,
+    https: false,
+    hotOnly: false,
+    proxy: proxyData, // 设置代理
+    before: app => { }
+  },
+  transpileDependencies: [
+    'mand-mobile'
+  ]
+}
+```
+

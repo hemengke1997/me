@@ -62,7 +62,7 @@ export default function Index() {
                 Building something cool
               </p>
               <p className='animated text-sm opacity-75 md:text-base lg:text-lg'>
-                一个热爱技术前端工程师，专注于效率工具的开发
+                一个热爱技术的前端工程师，专注于效率工具开发
               </p>
               <div className='animated mt-5 flex flex-wrap justify-center gap-4'>
                 <a
@@ -137,9 +137,9 @@ export default function Index() {
           <section className='animate'>
             <div>
               <p className='font-semibold text-black dark:text-white'> 联系方式 </p>
-              <div className='mt-4 grid auto-cols-min grid-cols-4 gap-y-2'>
+              <div className='mt-4 flex flex-col gap-y-2'>
                 {SOCIALS.map((social, index) => (
-                  <div key={index}>
+                  <div key={index} className={'grid auto-cols-min grid-cols-4'}>
                     <div className='col-span-1 flex items-center gap-1'>
                       <span className='truncate whitespace-nowrap'>{social.NAME}</span>
                     </div>

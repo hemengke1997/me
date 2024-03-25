@@ -4,7 +4,7 @@ import { SITE, SOCIALS } from '~/consts'
 export default function Footer() {
   return (
     <footer className='relative bg-white dark:bg-black'>
-      <div className='animate'>
+      <div>
         <section className='py-5'>
           <Container size='md'>
             <div className='flex items-center justify-center sm:justify-end'>
@@ -57,7 +57,7 @@ export default function Footer() {
                   href='/'
                   className='flex w-fit gap-1 font-semibold text-current transition-colors duration-300 ease-in-out hover:text-black dark:hover:text-white'
                 >
-                  {SITE.TITLE}
+                  <img src='/logo.svg' className='w-20' />
                 </a>
               </div>
               <div className='flex items-center justify-center gap-2 sm:justify-end'>

@@ -1,5 +1,5 @@
 {
-  "image-manager.viewer.imageWidth": 364,
+  "image-manager.viewer.imageWidth": 148,
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "file:///Users/hemengke/Documents/github/hemengke1997-blog/.github/workflows/deploy.yml"
   }

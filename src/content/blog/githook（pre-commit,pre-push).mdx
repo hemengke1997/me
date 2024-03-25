@@ -1,0 +1,354 @@
+---
+title: "详解githook"
+date: "2021-11-25 15:18:05"
+draft: false
+tags:
+- git
+---
+
+## 介绍
+Git 能在特定的重要动作发生时触发自定义脚本，其中比较常用的有：pre-commit、commit-msg、pre-push 等钩子（hooks）。我们可以在 pre-commit 触发时进行代码格式验证，在 commit-msg 触发时对 commit 消息和提交用户进行验证，在 pre-push 触发时进行单元测试、e2e 测试等操作。
+Git 在执行 git init 进行初始化时，会在 .git/hooks 目录生成一系列的 hooks 脚本
+![image.png](https://cdn.nlark.com/yuque/0/2021/png/1447731/1637823359025-83f02ce8-b000-4034-ad87-59c9ec3f4e49.png#clientId=u819a1335-de35-4&from=paste&height=601&id=u6dd59d9e&originHeight=601&originWidth=361&originalType=binary&ratio=1&rotation=0&showTitle=false&size=23027&status=done&style=none&taskId=uba58abb6-e0d9-4a57-a5c6-675efea8351&title=&width=361)
+
+脚手架中，大部分是使用 `husky` 来控制githook，在 `antd-pro` 脚手架中，是使用的 `yorkie` ，它是尤雨溪fork的 `husky` ，简化了一些代码
+
+目前流行的githook方式有两种，一种是像 `husky` 这种插件，在安装依赖时写入文件到 `.git >= hooks` 中。一种是手动写hooks，可以写到 `.git => hooks` 中，也可以写到任意文件夹中，由于 `.git` 文件夹不会上传到仓库中，不方便同事共同使用配置，在这里我使用后者，自己配置 `git hook` 文件目录
+
+我将通过仿 `yorkie` 来做一个githook流程
+
+## 写git hook
+githook的写法有很多种，只要是脚本语言都可以，比如 python、node、shell等等。
+这里copy一份尤雨溪写好的 `pre-commit`
+```shell
+#!/bin/sh
+
+command_exists () {
+  command -v "$1" >/dev/null 2>&1
+}
+
+has_hook_script () {
+  if [ $1 == 'pre-commit' ];then
+    return 0
+  fi
+  [ -f package.json ] && cat package.json | grep -q "\"$1\"[[:space:]]*:"
+}
+
+# OS X and Linux only
+load_nvm () {
+  # If nvm is not loaded, load it
+  command_exists nvm || {
+    export NVM_DIR="$1"
+    [ -s "$1/nvm.sh" ] && . "$1/nvm.sh"
+  }
+}
+
+# OS X and Linux only
+run_nvm () {
+  # If nvm has been loaded correctly, use project .nvmrc
+  command_exists nvm && [ -f .nvmrc ] && nvm use
+}
+
+cd "."
+
+# Check if pre-commit is defined, skip if not
+has_hook_script pre-commit || exit 0
+
+# Node standard installation
+export PATH="$PATH:/c/Program Files/nodejs"
+
+# Export Git hook params
+export GIT_PARAMS="$*"
+
+# Run hook
+node "./scripts/yorkie.js" pre-commit || {
+  echo
+  echo "pre-commit hook failed (add --no-verify to bypass)"
+  exit 1
+}
+```
+所有的hook文件都可以用这个，除了需要改一下名字。
+
+这里比较重要的是最后一步 `node '/scripts/yorkie.js'` 
+```javascript
+// scripts/yorkie.js
+const fs = require('fs');
+const path = require('path');
+const execa = require('execa');
+
+const cwd = process.cwd();
+const pkg = fs.readFileSync(path.join(cwd, 'package.json'));
+const pkgJson = JSON.parse(pkg);
+const hooks = pkgJson.gitHooks || {};
+if (pkgJson.scripts && pkgJson.scripts.precommit) {
+  hooks['pre-commit'] = 'npm run precommit';
+}
+if (!hooks) {
+  process.exit(0);
+}
+
+const hook = process.argv[2];
+const command = hooks[hook];
+if (!command) {
+  process.exit(0);
+}
+
+console.log(` > running ${hook} hook: ${command}`);
+try {
+  execa.commandSync(command, { stdio: 'inherit' });
+} catch (e) {
+  process.exit(1);
+}
+
+```
+其实就是每个钩子在触发的时候，去执行一个js脚本，然后这个js脚本去执行命令行代码
+比如：
+
+1. git commit -m '测试'
+2. 触发 pre-commit
+3. 触发 package.json 中的 precommit
+4. 结束
+## pre-commit
+提交之前，我们使用 `lint` 去检查校验代码是否没问题
+`package.json => scripts => precommit: lint-staged`
+
+## commit-msg
+代码校验通过后，会触发 `commit-msg` 钩子
+```json
+// package.json  
+"gitHooks": {
+   "commit-msg": "node ./scripts/verifycommit.js",
+   "pre-push": "node ./scripts/prepush.js"
+ },
+```
+此时，会执行 `scripts/verifycommit.js` 脚本，其内容如下：
+```javascript
+// Invoked on the commit-msg git hook by yorkie.
+
+const chalk = require('chalk');
+
+const msgPath = process.env.GIT_PARAMS || process.env.HUSKY_GIT_PARAMS;
+const msg = require('fs').readFileSync(msgPath, 'utf-8').trim();
+
+const commitRE =
+  /^(((\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]) )?(revert: )?(feat|fix|docs|style|refactor|⚡perf|workflow|build|CI|ci|typos|chore|tests|types|wip|release|dep|locale)(\(.+\))?: .{1,50}/;
+
+if (!commitRE.test(msg) && !msgPath.includes('MERGE_MSG')) {
+  console.error(
+    `  ${chalk.bgRed.white(' ERROR ')} ${chalk.red(`提交日志不符合规范`)}\n\n${chalk.red(
+      `  合法的提交日志格式如下(emoji 和 模块可选填)：\n\n`,
+    )}
+${chalk.green(`✨ feat(模块): 添加新特性`)}
+${chalk.green(`🐛 fix(模块): 修复bug`)}
+${chalk.green(`📝 docs(模块): 修改文档`)}
+${chalk.green(`🌈 style(模块): 修改样式`)}
+${chalk.green(`♻️ refactor(模块): 代码重构`)}
+${chalk.green(`🏗️ chore(模块): 改变构建流程，或增加依赖库、工具库`)}
+${chalk.green(`⚡ perf(模块): 优化相关，比如提升性能、体验`)}
+${chalk.green(`🔧 build(模块): 依赖相关的内容`)}
+${chalk.green(`🧪 test(模块): 测试相关`)}
+${chalk.green(`🏷️ types(模块): TS类型相关`)}
+${chalk.green('推荐使用vscode插件：git-commit-plugin，快捷提交commit')}
+${chalk.red(`See README.md for more details.\n`)}`,
+  );
+  process.exit(1);
+}
+```
+若 `commit-msg` 符合我们的要求，此次的 commit 就成功了
+
+也可以把commit-msg的内容直接写到githook脚本中：
+```json
+#!/usr/bin/env node
+
+const chalk = require('chalk');
+
+const msgPath = process.env.GIT_PARAMS || process.env.HUSKY_GIT_PARAMS;
+const msg = require('fs').readFileSync(msgPath, 'utf-8').trim();
+
+const commitRE =
+  /^(((\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]) )?(revert: )?(feat|fix|docs|style|refactor|⚡perf|workflow|build|CI|ci|typos|chore|tests|types|wip|release|dep|locale)(\(.+\))?: .{1,50}/;
+
+if (!commitRE.test(msg) && !msgPath.includes('MERGE_MSG')) {
+  console.error(
+    `  ${chalk.bgRed.white(' ERROR ')} ${chalk.red(`提交日志不符合规范`)}\n\n${chalk.red(
+      `  合法的提交日志格式如下(emoji 和 模块可选填)：\n\n`,
+    )}
+${chalk.green(`✨ feat(模块): 添加新特性`)}
+${chalk.green(`🐛 fix(模块): 修复bug`)}
+${chalk.green(`📝 docs(模块): 修改文档`)}
+${chalk.green(`🌈 style(模块): 修改样式`)}
+${chalk.green(`♻️ refactor(模块): 代码重构`)}
+${chalk.green(`🏗️ chore(模块): 改变构建流程，或增加依赖库、工具库`)}
+${chalk.green(`⚡ perf(模块): 优化相关，比如提升性能、体验`)}
+${chalk.green(`🔧 build(模块): 依赖相关的内容`)}
+${chalk.green(`🧪 test(模块): 测试相关`)}
+${chalk.green(`🏷️ types(模块): TS类型相关`)}
+${chalk.green('推荐使用vscode插件：git-commit-plugin，快捷提交commit')}
+${chalk.red(`See README.md for more details.\n`)}`,
+  );
+  process.exit(1);
+}
+```
+
+## pre-push
+我这个网站有版本更迭，每次推送代码之前会在终端提示开发者是否更新版本，所以把脚本放在了 `pre-push` 钩子中
+```javascript
+// scripts/prepush.js
+#!/usr/bin/env node
+
+const commander = require('commander');
+const inquirer = require('inquirer');
+const semver = require('semver');
+const chalk = require('chalk');
+const shell = require('shelljs');
+
+const program = new commander.Command();
+
+const { version } = require('../package.json');
+
+function isValidNewVersion(oldVersion, newVersion) {
+  return !!(semver.valid(newVersion) || semver.inc(oldVersion, newVersion));
+}
+
+async function inputVersion() {
+  // 弹出当前版本，并提示用户输入最新版本号
+  const { newVersion } = await inquirer.prompt([
+    {
+      type: 'input',
+      message: `请输入版本号(当前版本:${version})`,
+      name: 'newVersion',
+    },
+  ]);
+
+  if (isValidNewVersion(version, newVersion) && semver.lt(version, newVersion)) {
+    console.log('更新版本中，请稍等...');
+    try {
+      // 更改package的version
+      if (
+        shell.exec(`npm version ${newVersion} --no-commit-hooks --no-git-tag-version`).code !== 0
+      ) {
+        console.log(chalk.red('更新失败'));
+        shell.echo('Error: npm version error');
+        shell.exit(1);
+      } else {
+        const addCode = shell.exec(`git add .`).code;
+        const commitCode = shell.exec(`git commit -m "v${newVersion}" --no-verify`).code;
+        if (addCode === 0 && commitCode === 0) {
+          console.log(chalk.green(`更新版本成功，最新版本:${newVersion}`));
+        } else {
+          shell.exit(1);
+        }
+      }
+    } catch (err) {
+      console.log(err, chalk.grey('err~!'));
+      shell.exit(1);
+    }
+  } else {
+    // 提示输入不合法，重新输入
+    console.error(
+      chalk.red('输入不合法，请遵循npm语义化'),
+      chalk.underline('https://semver.org/lang/zh-CN/'),
+    );
+    inputVersion();
+  }
+}
+
+async function main() {
+  if (!shell.which('git')) {
+    shell.echo('Sorry, this script requires git');
+    shell.exit(1);
+  }
+
+  // 只有在 master 或 develop 分支才会弹出
+  const allowBranch = ['master', 'develop'];
+  const gitBranchName = shell.exec(`git rev-parse --abbrev-ref HEAD`, { silent: true });
+
+  if (allowBranch.includes(gitBranchName.stdout.trim())) {
+    program.version(version).action(async () => {
+      const { update } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          message: '是否更新网站版本？',
+          name: 'update',
+        },
+      ]);
+
+      if (update) {
+        await inputVersion();
+      } else {
+        shell.exit(0);
+      }
+    });
+    program.parse(process.argv);
+  } else {
+    console.log(chalk.yellow(`当前分支为:${gitBranchName.stdout}不执行版本更新操作`));
+  }
+}
+
+main();
+
+```
+到此，我这个系统的git流程算是走完了。
+
+## 设置githook的默认位置
+脚本可以正常执行只是第一步，还有一个问题是必须要解决的，那就是如何和同一项目的其他开发人员共享 git hooks 配置。因为 .git/hooks 目录不会随着提交一起推送到远程仓库。对于这个问题有两种解决方案：第一种是模仿 husky 做一个 npm 插件，在安装的时候自动在 .git/hooks 目录添加 hooks 脚本；第二种是将 hooks 脚本单独写在项目中的某个目录，然后在该项目安装依赖时，自动将该目录设置为 git 的 hooks 目录。
+接下来详细说说第二种方法的实现过程：
+
+1. 在 `npm install` 执行完成后，自动执行 `git config core.hooksPath hooks` 命令。
+2. `git config core.hooksPath hooks` 命令将 `git hooks` 目录设置为项目根目录下的 hooks 目录。
+
+![image.png](https://cdn.nlark.com/yuque/0/2021/png/1447731/1637824440552-d1a335f4-e519-4d2b-8401-c270699596a7.png#clientId=u819a1335-de35-4&from=paste&height=444&id=u4ea8b815&originHeight=444&originWidth=645&originalType=binary&ratio=1&rotation=0&showTitle=false&size=55743&status=done&style=none&taskId=u7ae228f7-47fe-4417-adbc-a5435d175ea&title=&width=645)
+
+## husky
+###### 首先按照husky官网教程安装，安装好之后会出现 `.husky` 文件夹，可以在这里写githook
+![image.png](https://cdn.nlark.com/yuque/0/2021/png/1447731/1637824619736-ef08bf5a-2992-4589-bec3-60ec2b2281ff.png#clientId=u0a2bbb7f-4576-4&from=paste&height=144&id=u97caac7b&originHeight=144&originWidth=335&originalType=binary&ratio=1&rotation=0&showTitle=false&size=4284&status=done&style=none&taskId=u7d2d8b13-4f75-43b8-8ce9-a5eafe0f227&title=&width=335)
+比如要在commit之前执行lint的代码校验
+![image.png](https://cdn.nlark.com/yuque/0/2021/png/1447731/1637824647257-379bf67a-a78d-4aa8-ad6a-c49e0e7928b4.png#clientId=u0a2bbb7f-4576-4&from=paste&height=296&id=u54b78107&originHeight=296&originWidth=959&originalType=binary&ratio=1&rotation=0&showTitle=false&size=23254&status=done&style=none&taskId=ud10eeee9-6e48-4fe5-b0fd-dd1a02b41c0&title=&width=959)
+
+
+## 根据版本号判断老页面是否需要刷新
+既然有网站版本了，那么可以用这个版本来做一些事，比如[《根据网站版本号判断是否更新网页》](https://www.yuque.com/docs/share/f76fdbe2-2ffb-462e-b234-b7b09129f619?# 《根据网站版本号判断是否更新网页》)
+
+## 目录结构
+![image.png](https://cdn.nlark.com/yuque/0/2021/png/1447731/1634110680613-d2e7ce51-3cbe-4029-b099-7bb0dfcf56da.png#clientId=ud969571c-2b6d-4&from=paste&height=445&id=uda839bd5&originHeight=445&originWidth=360&originalType=binary&ratio=1&rotation=0&showTitle=false&size=15819&status=done&style=none&taskId=u48d9c74a-bdb5-423b-9e11-34e70702e42&title=&width=360)![image.png](https://cdn.nlark.com/yuque/0/2021/png/1447731/1634110687726-2c79cc68-0d6e-437a-90b7-94f9aaa34fdd.png#clientId=ud969571c-2b6d-4&from=paste&height=115&id=u2f70123a&originHeight=115&originWidth=335&originalType=binary&ratio=1&rotation=0&showTitle=false&size=4653&status=done&style=none&taskId=u31b5a1f3-f6ba-421f-babd-8d4ec33f71b&title=&width=335)
+
+## .vscode
+为了更好的分享配置，我把 `.vscode` 从 `.gitignore` 中移除了，添加了一些公用配置
+```json
+// extension.json
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "stylelint.vscode-stylelint",
+    "redjue.git-commit-plugin",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode"
+  ]
+}
+```
+```json
+// setting.json
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "search.exclude": {
+    "**/node_modules": true,
+    ".git": true,
+    ".vscode": true
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.stylelint": true
+  },
+  "typescript.tsdk": "node_modules\\typescript\\lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "javascript.suggestionActions.enabled": false
+}
+```

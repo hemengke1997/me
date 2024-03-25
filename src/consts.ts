@@ -7,12 +7,6 @@ export const SITE: Site = {
   AUTHOR: 'Minko (hemengke1997)',
 }
 
-// Work Page
-export const WORK: Page = {
-  TITLE: 'Work',
-  DESCRIPTION: 'Places I have worked.',
-}
-
 // Blog Page
 export const BLOG: Page = {
   TITLE: '文章',

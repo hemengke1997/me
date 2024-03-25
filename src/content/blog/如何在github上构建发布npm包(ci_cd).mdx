@@ -1,0 +1,92 @@
+---
+title: "如何在github上构建发布npm包(ci_cd)"
+summary: "github action 自动化"
+date: "2022-05-16 11:56:18"
+draft: false
+tags:
+- npm
+- github action
+---
+
+
+# why
+为何会生出这个想法，因为别人pr了我的库，我每次都要去手动pull =>build=>publish。这个过程的痛点在于
+
+- 我的本地需要有仓库代码
+- npm publish 登录验证
+# how
+## 基础知识
+[Microsoft](https://docs.github.com/cn/actions/quickstart)
+[基于 Github Action 的 CI/CD 流程](https://zhuanlan.zhihu.com/p/250534172)
+[5 分钟教你快速掌握 GitHub Actions 自动发布 Npm 包和网站](https://segmentfault.com/a/1190000041753907)
+## 实战操作
+在** 基础知识** 中，我们了解到了基本github ci/cd 的概念。我们现在需要做的是配置 github action，使其可以发布npm包
+### npm包持续集成
+#### 生成 npm accessToken
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652672015727-388f6db0-112e-41b1-98ef-e426bea44eea.png#clientId=uacc734b3-710d-4&from=paste&height=456&id=udc868ad4&originHeight=456&originWidth=1321&originalType=binary&ratio=1&rotation=0&showTitle=false&size=50870&status=done&style=none&taskId=u393de526-ed19-47df-896b-8b847c71a08&title=&width=1321)
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652672097478-76b20224-2270-4c6b-9687-c75a4ec8db57.png#clientId=uacc734b3-710d-4&from=paste&height=695&id=u9d730d5d&originHeight=695&originWidth=744&originalType=binary&ratio=1&rotation=0&showTitle=false&size=79901&status=done&style=none&taskId=ub72df32b-84e7-4b1f-a32b-8a9bbf7f777&title=&width=744)
+#### 生成 github accessToken
+[https://github.com/settings/tokens](https://github.com/settings/tokens)
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652672260955-82587716-2641-477d-b087-49be4f63259e.png#clientId=uacc734b3-710d-4&from=paste&height=383&id=ue7e3c75c&originHeight=383&originWidth=923&originalType=binary&ratio=1&rotation=0&showTitle=false&size=38394&status=done&style=none&taskId=uae74de4c-99ef-498a-8fb5-18bf51fb9b2&title=&width=923)
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652672353011-f81d6b96-ea04-4f99-841b-a821d74ef5b9.png#clientId=uacc734b3-710d-4&from=paste&height=907&id=u3fa8cb04&originHeight=907&originWidth=794&originalType=binary&ratio=1&rotation=0&showTitle=false&size=86013&status=done&style=none&taskId=u74827d76-2e76-4eb6-8958-53f4397ed7f&title=&width=794)
+#### 在仓库中配置token
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652672416261-1eddc752-41c3-4017-9db3-abf4a33891af.png#clientId=uacc734b3-710d-4&from=paste&height=681&id=u09c5b17c&originHeight=681&originWidth=1315&originalType=binary&ratio=1&rotation=0&showTitle=false&size=76496&status=done&style=none&taskId=u126694b5-e1e4-49cd-9d69-d61975b4234&title=&width=1315)
+![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652672424196-09f6da5e-ac56-4398-8e9b-2d8217b9289e.png#clientId=uacc734b3-710d-4&from=paste&height=486&id=uc9edafff&originHeight=486&originWidth=829&originalType=binary&ratio=1&rotation=0&showTitle=false&size=14486&status=done&style=none&taskId=ue918f11a-abd1-40a6-83fe-066aeccd94a&title=&width=829)
+把 npm 和 github 的token都配置进去，名称随意
+#### 使用方式
+| TokenName | Key | Value |
+| --- | --- | --- |
+| Personal Access Token | ACCESS_TOKEN | $\{{ secrets.ACCESS_TOKEN }\} （你刚刚配置的github accessToken的名称） |
+| Npm Access Token | NODE_AUTH_TOKEN | $\{{secrets.NPM_TOKEN}\} （你刚刚配置的npmToken的名称） |
+
+#### 写workflow.yml
+```yaml
+name: "publish to npm"
+on: workflow_dispatch
+jobs:
+    main:
+        runs-on: ubuntu-latest
+        steps:
+            - name: ⬇️ Checkout repo
+              uses: actions/checkout@v2
+              with:
+                  token: ${{ secrets.ACCESS_TOKEN }}
+                  fetch-depth: 0
+
+            - name: ⎔ Setup node
+              # sets up the .npmrc file to publish to npm
+              uses: actions/setup-node@v2
+              with:
+                  node-version: '16.13.0'
+                  registry-url: "https://registry.npmjs.org"
+
+            - name: 📥 Download deps
+              uses: bahmutov/npm-install@v1
+              with:
+                  useLockFile: false
+
+            - name: Configure git user
+              run: |
+                  git config --global user.email ${{ github.actor }}@users.noreply.github.com
+                  git config --global user.name ${{ github.actor }}
+            - name: ▶️ Run release
+              run: npm run release
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+##### 关于workflow的写法
+github上很多优秀的项目都配置了workflow，可以去参考这些项目怎么写。有多action也被封装好了，可以在[market](https://github.com/marketplace?category=&query=&type=actions&verification=)中搜到
+#### 一些问题
+
+1. npm权限
+```xml
+npm notice 
+npm ERR! code ENEEDAUTH
+npm ERR! need auth This command requires you to be logged in.
+npm ERR! need auth You need to authorize this machine using `npm adduser`
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /home/runner/.npm/_logs/2022-05-16T02_33_55_906Z-debug.log
+Error: Process completed with exit code 1.
+```
+解决方案：配置npm 2FA，然后配置 自动化 npm token

@@ -1,0 +1,1020 @@
+---
+title: "实现掘金的图片预览动效"
+date: "2020-12-31 16:08"
+draft: false
+tags:
+- 其他
+---
+
+### 先看看掘金的图片预览效果
+
+<video preload="metadata" controls src="https://lark-video.oss-cn-hangzhou.aliyuncs.com/outputs/prod/yuque/2020/1447731/gif/1609145231211-4f3bbb57-9f6f-47ed-908a-0becb699d0e4.mp4?OSSAccessKeyId=LTAI4GGhPJmQ4HWCmhDAn4F5&Expires=1711361351&Signature=B523TPA5R%2B2%2F8pH7yaLC37OxGlQ%3D" />
+
+### 分析
+
+1. 图片是从原来的地方移动至屏幕居中，且移动带有过渡效果
+2. 图片出现时有蒙层过渡效果
+### 查看掘金css
+![image.png](https://cdn.nlark.com/yuque/0/2020/png/1447731/1609145324056-b4c145e5-d9c8-4ca8-bb31-92aa0cf0acdf.png#align=left&display=inline&height=173&originHeight=173&originWidth=222&size=7120&status=done&style=none&width=222)
+图片是使用的绝对定位+transition:all实现的移动和过渡效果
+![image.png](https://cdn.nlark.com/yuque/0/2020/png/1447731/1609145372256-34f4bc4b-2ec6-4a10-bc3b-85dd0bb2bc61.png#align=left&display=inline&height=34&originHeight=34&originWidth=394&size=3982&status=done&style=none&width=394)
+图片包裹层使用了vue的transition组件，蒙层的过渡是在 fade-enter-active中实现的
+
+### 我的版本
+```vue
+<template>
+  <div>
+    <img
+      src="../assets/imgs/douyin.png"
+      @click="changeVisible(true)"
+      class="origin-image"
+      alt=""
+      ref="originImage"
+    />
+
+    <transition name="fade">
+      <div class="image-viewer" v-if="visible" @click="changeVisible(false)">
+        <div class="image-box">
+          <img
+            :style="imageStyle"
+            src="../assets/imgs/douyin.png"
+            class="image"
+            alt=""
+          />
+        </div>
+      </div>
+    </transition>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      visible: false,
+      rect: {},
+      imageStyle: "",
+    };
+  },
+  methods: {
+    changeVisible(v) {
+      this.visible = v;
+      this.rect = this.$refs.originImage.getBoundingClientRect();
+      this.setImageStyle();
+    },
+    setImageStyle() {
+      const r = this.rect;
+      // 方法1， 使用requestAnimationFrame
+      new Promise((resolve) => {
+        if (this.imageStyle) {
+          this.imageStyle = `top:${r.top}px; left: ${r.left}px;`;
+          resolve();
+        } else {
+          // 第一次渲染时没有过渡效果，不知道为什么啊。。
+          this.raq = window.requestAnimationFrame(() => {
+            this.imageStyle = `top:${r.top}px; left: ${r.left}px;`;
+            resolve();
+          });
+        }
+      }).then(() => {
+        this.raq = window.requestAnimationFrame((timestamp) => {
+          const top = (window.innerHeight - r.height) / 2;
+          const left = (window.innerWidth - r.width) / 2;
+          this.imageStyle = `width: ${r.width}px;height: ${r.height}px; top:${top}px; left: ${left}px;`;
+          if (window.requestIdleCallback) {
+            window.requestIdleCallback(() => {
+              window.cancelAnimationFrame(this.raq);
+            });
+          } else {
+            window.cancelAnimationFrame(this.raq);
+          }
+        });
+      });
+      // 方法2， 使用setTimeout
+      const r = this.rect;
+      this.imageStyle = `top:${r.top}px; left: ${r.left}px;`;
+      const t = setTimeout(() => {
+       const top = (window.innerHeight - r.height) / 2;
+       const left = (window.innerWidth - r.width) / 2;
+       this.imageStyle = `width: ${r.width}px;height: ${r.height}px; top:${top}px; left: ${left}px;`;
+       clearTimeout(t)
+      });
+    },
+  },
+};
+</script>
+
+<style scoped>
+.origin-image {
+  width: 200px;
+  height: 200px;
+  margin-left: 300px;
+  margin-top: 300px;
+}
+.image-viewer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 1000;
+}
+.image-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  line-height: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow: auto;
+}
+.image {
+  position: absolute;
+  transition: all 0.2s;
+  cursor: zoom-out;
+}
+
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-to {
+  opacity: 1;
+}
+</style>
+```
+可以将图片预览抽离成单独组件，使用单例模式，使得页面中只有一个图片预览节点
+<video preload="metadata" controls src="https://lark-video.oss-cn-hangzhou.aliyuncs.com/outputs/prod/yuque/2020/1447731/gif/1609223198055-51b1a8dd-9b9b-4265-a9a4-ef61e7d582de.mp4?OSSAccessKeyId=LTAI4GGhPJmQ4HWCmhDAn4F5&Expires=1711361351&Signature=H4z6fQ%2Fx%2BVewjeWGoRv4hX2bUQs%3D" />
+### 引申： 我想在图片隐藏时添加逆动画
+解决方案：
+```vue
+<template>
+  <div>
+    <img
+      src="../assets/imgs/douyin.png"
+      @click="changeVisible(true)"
+      class="origin-image"
+      ref="originImage"
+    />
+
+    <transition name="fade">
+      <div class="image-viewer" v-if="visible" @click="changeVisible(false)">
+        <div class="image-box">
+          <img
+            ref="image"
+            :style="imageStyle"
+            src="../assets/imgs/douyin.png"
+            class="image"
+          />
+        </div>
+      </div>
+    </transition>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      visible: false,
+      rect: {},
+      imageStyle: "",
+      timeout: null,
+    };
+  },
+  methods: {
+    changeVisible(v) {
+      this.visible = v;
+      this.rect = this.$refs.originImage.getBoundingClientRect();
+      this.setImageStyle(v);
+    },
+    setImageStyle(v) {
+      const r = this.rect;
+      if (v) {
+        this.imageStyle = `top:${r.top}px; left: ${r.left}px;`;
+        this.timeout = setTimeout(() => {
+          const top = (window.innerHeight - r.height) / 2;
+          const left = (window.innerWidth - r.width) / 2;
+          this.imageStyle = `width: ${r.width}px; height: ${r.height}px; top:${top}px; left: ${left}px;`;
+        });
+      } else {
+        // 回到原来的地方就行了
+        // 这里之所以使用ref，而不像原来那样 this.imageStyle，是因为vue的渲染机制，
+        // v-if为false时，imageStyle无法绑定到节点上
+        this.$refs.image.style = `width: ${r.width}px; height: ${r.height}px; top:${r.top}px; left: ${r.left}px;`;
+      }
+    },
+  },
+  destroyed() {
+    clearTimeout(this.timeout);
+  },
+};
+</script>
+
+<style scoped>
+.origin-image {
+  width: 200px;
+  height: 200px;
+  margin-left: 300px;
+  margin-top: 300px;
+}
+.image-viewer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 1000;
+}
+.image-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  line-height: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow: auto;
+}
+.image {
+  position: absolute;
+  transition: all 0.2s;
+  cursor: zoom-out;
+}
+
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-to {
+  opacity: 1;
+}
+.fade-leave {
+  opacity: 1;
+}
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
+```
+<video preload="metadata" controls src="https://lark-video.oss-cn-hangzhou.aliyuncs.com/outputs/prod/yuque/2020/1447731/gif/1609226206069-5f589e4a-08f7-499d-b730-6e7c1cdf1148.mp4?OSSAccessKeyId=LTAI4GGhPJmQ4HWCmhDAn4F5&Expires=1711361351&Signature=nWjZC%2Br%2BROfvrS9qUyOetstU6gg%3D" />
+### React版本
+```jsx
+import React, { useEffect, useRef, useState } from 'react'
+import styles from './index.module.less'
+import { CSSTransition } from 'react-transition-group'
+import douyinPng from '../../assets/douyin.png'
+
+const ImageViewer = () => {
+  const [visible, setVisible] = useState(false)
+  const [rect, setRect] = useState({})
+  const [imageStyle, setImageStyle] = useState({})
+  const originImage = useRef()
+
+  const handleVisible = () => {
+    setVisible(!visible)
+    setRect(originImage.current.getBoundingClientRect())
+  }
+
+  useEffect(() => {
+    handleTransition(visible)
+  }, [visible])
+
+  const handleTransition = (visible) => {
+    if (visible) {
+      setImageStyle({
+        top: `${rect.top}px`,
+        left: `${rect.left}px`
+      })
+      const raq = window.requestAnimationFrame(() => {
+        const top = (window.innerHeight - rect.height) / 2
+        const left = (window.innerWidth - rect.width) / 2
+        setImageStyle({
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+          top: `${top}px`,
+          left: `${left}px`
+        })
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(() => {
+            window.cancelAnimationFrame(raq);
+          });
+        } else {
+          window.cancelAnimationFrame(raq);
+        }
+      })
+    } else {
+      setImageStyle({
+        top: `${rect.top}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`
+      })
+    }
+  }
+
+  return (
+    <>
+      <img src={douyinPng} ref={originImage} className={styles.originImage} onClick={() => handleVisible()} />
+      <CSSTransition in={visible} classNames={{
+        enter: styles['image-enter'],
+        enterActive: styles['image-enter-active'],
+        exit: styles['image-exit'],
+        exitActive: styles['image-exit-active'],
+      }} timeout={200} unmountOnExit mountOnEnter={false}>
+        <div className={styles.imageViewer}>
+          <div className={styles.imageBox} onClick={() => handleVisible()}>
+            <img src={douyinPng} style={imageStyle} className={styles.image} />
+          </div>
+        </div>
+      </CSSTransition>
+    </>
+  )
+}
+
+export default ImageViewer
+```
+```less
+.originImage {
+  width: 200px;
+  height: 200px;
+  margin-left: 300px;
+  margin-top: 300px;
+  cursor: zoom-in;
+}
+
+.imageViewer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 1000;
+}
+
+.imageBox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  line-height: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow: auto;
+}
+
+.image {
+  position: absolute;
+  transition: all .2s;
+  cursor: zoom-out;
+}
+
+
+.image-enter {
+  opacity: 0;
+}
+
+.image-enter-active {
+  transition: opacity .2s;
+  opacity: 1;
+}
+
+
+.image-exit {
+  opacity: 1;
+}
+
+.image-exit-active {
+  transition: opacity .2s;
+  opacity: 0;
+}
+```
+### vue扩展版本之第一版
+```vue
+<template>
+  <transition name="fade" @afterLeave="$_onAfterLeave">
+    <div class="image-viewer" v-if="visible" @click="hide">
+      <div class="image-box">
+        <img ref="image" :style="imageStyle" :src="imageSrc" class="image" />
+      </div>
+    </div>
+  </transition>
+</template>
+
+<script>
+export default {
+  name: "image-viewer",
+  data() {
+    return {
+      timeout: null,
+      imageStyle: "",
+      visible: false,
+    };
+  },
+  props: {
+    imageSrc: {
+      type: String,
+      default: "",
+    },
+    rect: {
+      type: DOMRect,
+    },
+  },
+  methods: {
+    setImageStyle(v) {
+      const r = this.rect;
+      if (v) {
+        this.imageStyle = `top:${r.top}px; left: ${r.left}px;`;
+        this.timeout = setTimeout(() => {
+          const top = (window.innerHeight - r.height) / 2;
+          const left = (window.innerWidth - r.width) / 2;
+          this.imageStyle = `width: ${r.width}px; height: ${r.height}px; top:${top}px; left: ${left}px;`;
+        });
+      } else {
+        this.$refs.image.style = `width: ${r.width}px; height: ${r.height}px; top:${r.top}px; left: ${r.left}px;`;
+      }
+    },
+    $_onAfterLeave() {
+      this.$emit("afterLeave",'xx');
+    },
+    show() {
+      this.visible = true;
+      this.setImageStyle(true);
+    },
+    hide() {
+      this.visible = false;
+      this.setImageStyle(false);
+    },
+  },
+  beforeDestroy() {
+    clearTimeout(this.timeout);
+  },
+};
+</script>
+
+<style scoped>
+.image-viewer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 1000;
+}
+.image-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  line-height: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow: auto;
+}
+.image {
+  position: absolute;
+  transition: all 0.2s;
+  cursor: zoom-out;
+}
+
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-to {
+  opacity: 1;
+}
+.fade-leave {
+  opacity: 1;
+}
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
+```
+```javascript
+import Vue from 'vue'
+import imageViewerOptions from './imageViewer.vue'
+
+const ImageViewer = function ({
+  rect = new DOMRect(),
+  imageSrc = '',
+  parentNode = document.body
+}) {
+  
+  let vm = ImageViewer._instance
+  if(!vm) {
+    const ImageViwerConstructor = Vue.extend(imageViewerOptions)
+    vm = ImageViewer._instance = new ImageViwerConstructor({
+      propsData: {
+        rect,
+        imageSrc
+      }
+    }).$mount()
+  }
+  if(!vm.$el.parentNode) {
+    parentNode.appendChild(vm.$el)
+  }
+
+  vm.rect = rect
+  vm.imageSrc = imageSrc
+  vm.show()
+
+  return vm
+}
+
+ImageViewer._instance = null
+
+/* 
+  隐藏预览图片
+*/
+ImageViewer.hide = () => {
+  const ImageViwerConstructor = Vue.extend(imageViewerOptions)
+  if(ImageViewer._instance instanceof ImageViwerConstructor && ImageViewer._instance.visible) {
+    ImageViewer._instance.hide()
+  }
+}
+
+ImageViewer.component = imageViewerOptions
+
+export default ImageViewer
+
+```
+#### 使用方式
+```vue
+<template>
+  <div>
+    <img
+      src="../assets/imgs/douyin.png"
+      @click="show($event)"
+      class="origin-image"
+    />
+  </div>
+</template>
+
+<script>
+import ImageViewer from "@/components/imageViewer";
+export default {
+  methods: {
+    show(e) {
+      const rect = e.target.getBoundingClientRect();
+      const imageViewer = ImageViewer({
+        rect,
+        imageSrc: e.target.src,
+      });
+      imageViewer.$once("afterLeave", (res) => {
+        console.log(res);
+      });
+    },
+  },
+};
+</script>
+
+<style scoped>
+.origin-image {
+  width: 200px;
+  height: 200px;
+  margin-left: 300px;
+  margin-top: 300px;
+}
+</style>
+```
+#### 做后感
+基于Vue.extend做的扩展，这样子做的好处呢，就是可以做成插件，到处都可以用了，还有个好处就是，不用每次引入组件时都写在dom上，通过构造函数去挂载dom，单例模式也好实现多了。
+### vue插件版
+#### 在扩展版的基础上做一些小的修改即可
+```javascript
+import Vue from 'vue'
+import imageViewerOptions from './imageViewer.vue'
+
+const ImageViewer = function ({
+  rect = new DOMRect(),
+  imageSrc = '',
+  parentNode = document.body
+}) {
+
+  let vm = ImageViewer._instance
+  if (!vm) {
+    const ImageViwerConstructor = Vue.extend(imageViewerOptions)
+    vm = ImageViewer._instance = new ImageViwerConstructor({
+      propsData: {
+        rect,
+        imageSrc
+      }
+    }).$mount()
+  }
+  if (!vm.$el.parentNode) {
+    parentNode.appendChild(vm.$el)
+  }
+
+  vm.rect = rect
+  vm.imageSrc = imageSrc
+  vm.show()
+
+  return vm
+}
+
+ImageViewer._instance = null
+
+/* 
+  隐藏预览图片
+*/
+ImageViewer.hide = () => {
+  const ImageViwerConstructor = Vue.extend(imageViewerOptions)
+  if (ImageViewer._instance instanceof ImageViwerConstructor && ImageViewer._instance.visible) {
+    ImageViewer._instance.hide()
+  }
+}
+
+ImageViewer.component = imageViewerOptions
+
+// 扩展成插件
+const ImageViewerPlugin = function (Vue) {
+  if (!Vue || ImageViewerPlugin.installed) {
+    return
+  }
+  // 1. 添加全局方法或 property
+  // Vue.myGlobalMethod = function () {
+  // // 逻辑...
+  // }
+
+  // 2. 添加全局资源
+  // Vue.directive('my-directive', {
+
+  // })
+
+  // 3. 注入组件选项
+  // Vue.mixin({
+  //   created: function () {
+  //     // 逻辑...
+  //   }
+  //   ...
+  // })
+
+  // 4. 添加实例方法
+  // Vue.prototype.$myMethod = function (methodOptions) {
+  //   // 逻辑...
+  // }
+  Vue.prototype.$imageViewer = ImageViewer
+}
+
+if (typeof window !== 'undefined' && window.Vue) {
+  ImageViewerPlugin(window.Vue)
+}
+
+export {
+  ImageViewer
+}
+
+export default ImageViewerPlugin
+```
+#### 使用方式
+##### 全局引入。 在 `main.js` 中引入
+```javascript
+import ImageViewer from './components/imageViewer/index'
+Vue.use(ImageViewer)
+```
+然后在组件中使用
+```javascript
+this.$imageViewer(rect, imageSrc)
+```
+
+##### 按需引入。在组件中引入
+
+1. 直接调用
+```javascript
+import { ImageViewer } from "@/components/imageViewer";
+// 使用方式
+ImageViewer(rect, imageSrc)
+```
+
+2. 声明调用
+```vue
+<template>
+  <div>
+    <img
+      src="../assets/imgs/douyin.png"
+      @click="show($event)"
+      class="origin-image"
+    />
+    <image-viewer
+      :rect="rect"
+      ref="imageViewer"
+      :imageSrc="imageSrc"
+    ></image-viewer>
+  </div>
+</template>
+
+<script>
+import { ImageViewer } from "@/components/imageViewer";
+export default {
+  data() {
+    return {
+      rect: new DOMRect(),
+      imageSrc: "",
+    };
+  },
+  components: {
+    [ImageViewer.component.name]: ImageViewer.component,
+  },
+  methods: {
+    show(e) {
+      this.rect = e.target.getBoundingClientRect();
+      this.imageSrc = e.target.src;
+      this.$nextTick(() => {
+        this.$refs.imageViewer.show();
+      });
+    },
+  },
+};
+</script>
+
+<style scoped>
+.origin-image {
+  width: 200px;
+  height: 200px;
+  margin-left: 300px;
+  margin-top: 300px;
+}
+</style>
+```
+### Vue指令版
+#### 使用这种方式，就得全局引入了
+由于这是初版，局限性较大，所以指令很简单
+```javascript
+import Vue from 'vue'
+import imageViewerOptions from './imageViewer.vue'
+
+const ImageViewer = function ({
+  rect = new DOMRect(),
+  imageSrc = '',
+  parentNode = document.body
+}) {
+
+  let vm = ImageViewer._instance
+  if (!vm) {
+    const ImageViwerConstructor = Vue.extend(imageViewerOptions)
+    vm = ImageViewer._instance = new ImageViwerConstructor({
+      propsData: {
+        rect,
+        imageSrc
+      }
+    }).$mount()
+  }
+  if (!vm.$el.parentNode) {
+    parentNode.appendChild(vm.$el)
+  }
+
+  vm.rect = rect
+  vm.imageSrc = imageSrc
+  vm.show()
+
+  return vm
+}
+
+ImageViewer._instance = null
+
+/* 
+  隐藏预览图片
+*/
+ImageViewer.hide = () => {
+  const ImageViwerConstructor = Vue.extend(imageViewerOptions)
+  if (ImageViewer._instance instanceof ImageViwerConstructor && ImageViewer._instance.visible) {
+    ImageViewer._instance.hide()
+  }
+}
+
+ImageViewer.component = imageViewerOptions
+
+// 扩展成插件
+const ImageViewerPlugin = function (Vue) {
+  if (!Vue || ImageViewerPlugin.installed) {
+    return
+  }
+  // 1. 添加全局方法或 property
+  // Vue.myGlobalMethod = function () {
+  // // 逻辑...
+  // }
+
+  // 2. 添加全局资源
+  // Vue.directive('my-directive', {
+
+  // })
+
+  // 3. 注入组件选项
+  // Vue.mixin({
+  //   created: function () {
+  //     // 逻辑...
+  //   }
+  //   ...
+  // })
+
+  // 4. 添加实例方法
+  // Vue.prototype.$myMethod = function (methodOptions) {
+  //   // 逻辑...
+  // }
+  Vue.prototype.$imageViewer = ImageViewer
+
+  // 添加指令
+  const isVue2 = Vue.version.split('.')[0] === '2'
+  if (isVue2) {
+    const handleClick = (el) => {
+      ImageViewer({ rect: el.getBoundingClientRect(), imageSrc: el.src })
+    }
+
+    Vue.directive('viewer', {
+      bind: (el) => {
+        el.addEventListener('click', () => handleClick(el))
+      },
+      // update: () => {
+      //   console.log('update')
+      // },
+      // componentUpdated: () => {
+      //   console.log('componentUpdated')
+      // },
+      unbind: (el) => {
+        el.removeEventListener('click', () => handleClick(el))
+      }
+    })
+  }
+}
+
+if (typeof window !== 'undefined' && window.Vue) {
+  ImageViewerPlugin(window.Vue)
+}
+
+export {
+  ImageViewer
+}
+
+export default ImageViewerPlugin
+```
+### React插件版之第一版非常简陋版
+#### 改动
+这个版本把图片移动改成了 `transform` 的方式（也算是一种性能优化，transform会触发GPU）
+由于 `CSSTransition` 比较特殊，有个 `unmountOnExit` 卸载dom，帮我节省了卸载dom的步骤，也不需要判断单例了
+```jsx
+import React, { useState, useEffect } from 'react'
+import styles from './index.module.less'
+import { CSSTransition } from 'react-transition-group'
+import ReactDom from 'react-dom'
+
+let changeVisible
+const ImageViewerDom = (props) => {
+  const { rect, imageSrc } = props
+
+  const [visible, setVisible] = useState(false)
+  const [imageStyle, setImageStyle] = useState({})
+
+  changeVisible = (v) => {
+    setVisible(v)
+  }
+
+  const handleTransition = (visible) => {
+    if (visible) {
+      setImageStyle({
+        transform: `translate3d(${rect.left}px, ${rect.top}px, 0)`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`
+      })
+      const raq = window.requestAnimationFrame(() => {
+        const width = rect.width * 2
+        const height = rect.height * 2
+        const top = (window.innerHeight - height) / 2
+        const left = (window.innerWidth - width) / 2
+        setImageStyle({
+          width: `${rect.width * 2}px`,
+          height: `${rect.height * 2}px`,
+          transform: `translate3d(${left}px, ${top}px, 0)`
+        })
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(() => {
+            window.cancelAnimationFrame(raq);
+          });
+        } else {
+          window.cancelAnimationFrame(raq);
+        }
+      })
+    } else {
+      setImageStyle({
+        transform: `translate3d(${rect.left}px, ${rect.top}px, 0)`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`
+      })
+    }
+  }
+
+  useEffect(() => {
+    handleTransition(visible)
+  }, [visible])
+
+  return (
+    <CSSTransition in={visible} classNames={{
+      enter: styles['image-enter'],
+      enterActive: styles['image-enter-active'],
+      exit: styles['image-exit'],
+      exitActive: styles['image-exit-active'],
+    }} timeout={200} unmountOnExit mountOnEnter={false}>
+      <div className={styles.imageViewer}>
+        <div className={styles.imageBox} onClick={() => changeVisible(false)}>
+          <img src={imageSrc} style={imageStyle} className={styles.image} />
+        </div>
+      </div>
+    </CSSTransition>
+  )
+}
+
+
+function imageViewer(props = {
+  rect: new DOMRect(),
+  imageSrc: ''
+}) {
+  const parentNode = document.body
+  imageViewer.container = document.createElement('div')
+  let vm = ReactDom.createPortal(<ImageViewerDom {...props} />, parentNode)
+  ReactDom.render(vm, imageViewer.container)
+}
+
+
+const api = {
+  show(payload) {
+    const { rect, imageSrc } = payload
+    imageViewer({ rect, imageSrc })
+    changeVisible(true)
+  }
+}
+
+export default api
+```
+```less
+
+.imageViewer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 1000;
+}
+
+.imageBox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  line-height: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow: auto;
+}
+
+.image {
+  position: absolute;
+  transition: all .2s;
+  cursor: zoom-out;
+  transform-origin: center;
+}
+
+
+.image-enter {
+  opacity: 0;
+}
+
+.image-enter-active {
+  transition: opacity .2s;
+  opacity: 1;
+}
+
+
+.image-exit {
+  opacity: 1;
+}
+
+.image-exit-active {
+  transition: opacity .2s;
+  opacity: 0;
+}
+```
+#### 使用方式
+```jsx
+import imageViewer from './components/imageViewer'
+imageViewer.show({
+  rect: originImage.current.getBoundingClientRect(),
+  imageSrc: douyinPng
+})
+```
+#### 效果
+<video preload="metadata" controls src="https://lark-video.oss-cn-hangzhou.aliyuncs.com/outputs/prod/yuque/2020/1447731/gif/1609402056076-e3965f45-7dd4-4632-963b-2261c2058b77.mp4?OSSAccessKeyId=LTAI4GGhPJmQ4HWCmhDAn4F5&Expires=1711361351&Signature=sBTXND6L4M9lctLd6%2BDmzpg4s1w%3D" />

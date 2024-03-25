@@ -1,0 +1,839 @@
+---
+title: "深入理解服务端渲染原理（一）"
+date: "2023-07-26 20:28"
+draft: false
+tags:
+- vite
+- 服务端渲染
+---
+
+
+# 前言
+因内容较多，将分为三次讲完
+
+- 服务端的基本使用
+- 进阶使用
+- 融会贯通流行框架
+# 目标
+通过这一系列的学习，让大家从根本上理解服务端渲染原理，并达到举一反三的能力，可自行快速掌握各个SSR框架（Next.js，Nuxt等）
+# 温馨提示🫡
+以下大部分是我实践➕个人理解总结出来的，一定会有错误或纰漏
+如果有讲得不对的地方请当场指出，有疑惑的地方也请立即提出来 🙌
+
+---
+
+# 引言
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1690169754603-e6eee33d-b17e-47fa-91d7-f24f8fd16087.png#averageHue=%237a6e68&clientId=ucf0007ee-ac98-4&from=paste&height=478&id=u25e897d1&originHeight=956&originWidth=854&originalType=binary&ratio=2&rotation=0&showTitle=false&size=942309&status=done&style=none&taskId=uc7b6c311-9983-4bfa-bbea-355e4331ed3&title=&width=427)
+> 著名哲学家康德说：人是目的，而不是手段
+> 一位不知名的小伙阿梦说：技术是手段，而不是目的
+
+# 前端渲染的历史
+> 小技巧：学习之前先了解前端渲染的历史背景，有助于我们更易理解渲染方式
+
+## web 1.0 时代
+### 混合开发 (如 SpringMVC)
+> 了解一下：分层的目的是为了解耦，明确分工。
+
+```css
+M：model层 --- 跟数据库打交道
+V：view层 --- 跟视图打交道
+C：controller层 --- 跟业务打交道
+```
+
+![](https://cdn.nlark.com/yuque/0/2023/jpeg/1447731/1690169733139-dbca383d-5faa-49f1-bbdb-60c450877fcd.jpeg)
+
+> 没有什么是加一层架构无法解决的，如果有，就加两层
+
+
+这是一个没有前端工程师的年代。网页也特别简单，页面都是由JSP、PHP等服务端生成后，交给浏览器渲染。基本上是服务器给浏览器什么，浏览器就展示什么。几乎没有交互。
+这种模式只适合小型简单的项目，当业务复杂之后，JSP的代码维护性会越来越差，因为JSP混合了前后端逻辑，没有做分层处理
+
+- JSP中嵌入了JAVA业务代码
+- JSP也负责前端渲染
+```java
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>购物车</title>
+<link href="<%=cssUrl%>bootstrap.min.css" rel="stylesheet">
+
+<link href="<%=cssUrl%>index.css" rel="stylesheet">
+<link href="<%=cssUrl%>cart.css" rel="stylesheet">
+<script type="text/javascript" src="<%=jsUrl%>jquery-3.2.1.min.js"></script>
+<script type="text/javascript" src="<%=jsUrl%>bootstrap.min.js"></script>
+<script type="text/javascript" src="<%=jsUrl%>cartValidate.js"></script>
+<%@ include file="/commons/queryCondition.jsp" %>
+</head>
+<body>
+<%@ include file="/commons/header.jsp"%>
+<c:choose>
+
+
+<c:when test="${ !empty sessionScope.ShoppingCart.computers }">
+<br><br>
+<div class="container">
+<div class="container">
+<div class="alert alert-success tip-success" id="computerNumber">您的购物车中共有 <b>${sessionScope.ShoppingCart.computerNumber } </b>件商品</div>
+<table class="table table-striped">
+<tr>
+<td class="col-md-6">商品名</td>
+<td class="col-md-2 text-center">数量</td>
+<td class="col-md-2 text-center">价格</td>
+<td class="col-md-2 text-center">操作</td>
+</tr>
+<c:forEach items = "${sessionScope.ShoppingCart.items }" var = "item">
+
+<h4>User: ${user.username }</h4>
+            
+<tr>
+<td class="col-md-6 ">
+<img alt="${item.computer.id }" src="${item.computer.url }"/ style="width:180px;height:180px;">
+${item.computer.brand } &nbsp; ${item.computer.model } 
+</td>
+<td class="col-md-2 cartItem text-center" style="height:100px;line-height: 200px;">
+<input class="cartItemNum" step="${item.quantity }" type="text" size="1" name="${item.computer.id }" value="${item.quantity }" style="width:50px;height:30px;"/>
+</td>
+<td class="col-md-2 text-center">￥ <b>${item.computer.price }</b></td>
+<td class="col-md-2 text-center">
+<a class="btn btn-danger delete" href="computerServlet?method=remove&pageNo=${param.pageNo }&id=${item.computer.id }">删除</a>
+</td>
+</tr>
+
+
+</c:forEach>
+</table>
+
+
+<div id="totalMoney" style="font-weight:bold;">总金额：￥    ${sessionScope.ShoppingCart.totalMoney }</span> 
+</div>
+</div>
+<div class="container">
+<div class="row">
+<div class="col-xs-6 col-md-8"></div>
+<div class="col-xs-12 col-md-4 text-right" style="padding-left:30px;">
+<a href="computerServlet?method=getComputers&pageNo=${param.pageNo }" class="btn btn-default" role="button">继续购物</a>
+
+
+<a href="computerServlet?method=clear" class="btn btn-danger" role="button">清空购物车</a>
+
+<a href="computerServlet?method=forwardPage&page=cash" class="btn btn-primary" role="button">结账</a>
+</div>
+</div>		
+</div>
+</div>
+
+</c:when>
+<c:otherwise>
+<jsp:forward page="/WEB-INF/pages/emptycart.jsp" />
+</c:otherwise>
+</c:choose>
+<%@ include file="/commons/footer.jsp"%>
+</body>
+</html>
+```
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1689854787786-62864d69-d7b8-4050-bffd-982abce26658.png#averageHue=%23b09263&clientId=ua0f76a4e-c149-4&from=paste&height=429&id=ud9f6211a&originHeight=858&originWidth=868&originalType=binary&ratio=2&rotation=0&showTitle=false&size=710113&status=done&style=none&taskId=ue3aa9ef3-d06c-4743-8c5f-cfc7ce42c89&title=&width=434)
+### 总结：这是一个重后端轻前端的时期，每次用户请求资源，整个页面都会刷新，但这也是服务端渲染的雏形
+## web2.0 (Ajax)
+Ajax的全称是 `Asynchronous JavaScript And XML`
+> 前端工程师伴随Ajax一起出现了
+
+Ajax是浏览器内置的功能，通过 `xmlHttpRequest` ，可以向服务端发起请求，而不需要刷新页面。Ajax的出现是革命性的，它就是上面图中问题的答案，Ajax解耦了view层和服务端，成为了中间接口层
+```javascript
+function ajaxExample() {
+    const xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function () {
+        if (this.readyState == 4 && this.status == 200) {
+            document.getElementById('foo').innerHTML = this.responseText; // 响应
+        }
+    };
+    xhttp.open('GET', 'https://www.bar.com/interface', true);
+    xhttp.send();
+}
+```
+那么... 接下来，客户端渲染就当当当登场了
+### SPA（客户端渲染单页应用）
+![](https://cdn.nlark.com/yuque/0/2023/jpeg/1447731/1690170647600-27eb9195-b082-430c-91fc-c9d7fa88c487.jpeg)
+
+view层从MVC框架中脱离出来独立成为了前端工程师耕耘之地
+随着业务复杂、技术发展，渐渐的view层又被拆分成了 `MVVM` 架构（不赘述了，讲起来又是一大堆）
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1689863304330-89de639d-0886-406f-b560-4e838bc32600.png#averageHue=%23f3da79&clientId=uf2698d60-b797-4&from=paste&height=360&id=u3f71ab5a&originHeight=720&originWidth=1416&originalType=binary&ratio=2&rotation=0&showTitle=false&size=171710&status=done&style=none&taskId=ud8e7ac2c-0269-4ab5-8e32-cf345337abc&title=&width=708)
+前端框架也是在这个阶段出现的：
+
+- Angular
+- React
+- Vue
+
+客户端渲染如今依然是最主流的渲染方式，其优缺点都非常明显
+
+优点
+- 无刷新页面，交互良好，首次加载完资源后，即可给用户完整的网页体验
+- 减轻服务器压力。因为SPA打包后都是静态资源，只需要一个静态资源服务器即可实现高效的响应（如Nginx）
+- 开发效率高、维护性强。组件化、模块化的开发，开箱即用的组件或自行封装组件库等，都可以大大提升前端工程维护性和开发效率；得益于本地开发服务（vite 2021年）的发展，SPA的热更新极快
+- **我个人觉得最主要的一点**，客户端渲染相对比较简单，大大降低了前端开发的门槛，也使得前端开发近年来发展迅猛
+缺点
+- **没有SEO**
+- **第一次进入页面白屏时间久**
+### SSR（服务端渲染 AKA `Dynamic Rendering`）
+诶？怎么又回到服务端渲染了，为什么需要服务端渲染？
+
+---
+
+服务端渲染最主要就是为了解决客户端渲染的缺点
+
+此SSR非彼MVC。以前的服务端渲染是用JAVA、PHP这些后端语言来做的，
+现如今的服务端渲染普遍使用 前端框架 + nodejs 实现，还是跟服务端解耦的
+
+#### 原理
+用一句话概括服务端渲染原理：
+**使用前端框架，在服务端把页面渲染成搜索引擎良好的格式，然后返回给客户端激活(hydration)**
+
+但是不要低估任何看起来简单的事，因为简单的事总是会变得复杂
+
+---
+
+# vite之SSR渲染
+目前有许多流行的SSR方案，选择一个适合项目的即可，不必纠结（做好技术选型）
+## 饭前甜点🍮
+### react版本
+#### 初始化项目
+```bash
+pnpm create vite ssr-react-demo --template react-ts
+```
+#### 新建服务端渲染入口，使用框架的服务端API渲染组件
+```tsx
+import ReactDOMServer from 'react-dom/server'
+
+export function render() {
+  const html = ReactDOMServer.renderToString(<div id="root">Hello world</div>)
+  return html
+}
+```
+入口文件写好了，现在我们需要一个服务来执行这个入口
+#### 创建服务
+##### 安装express（其他任何node服务框架都可以）
+```tsx
+import express from 'express'
+
+// 创建http服务
+const app = express()
+
+// 为了方便各位理解，我们暂时不考虑正式环境
+
+// 开发环境下添加vite服务中间件
+const { createServer } = await import('vite')
+const vite = await createServer({
+	server: {
+		middlewareMode: true, // 以中间件模式启动vite开发服务
+	},
+	appType: 'custom',
+})
+app.use(vite.middlewares)
+
+// 拦截路由（* 通配符拦截所有请求）
+app.use('*', async (req, res) => {
+	console.log(req);
+	return res.send('Hello, world')
+})
+
+
+const PORT = 9527
+app.listen(PORT, () => {
+	console.log(`Server started at http://localhost:${PORT}`)
+})
+```
+先启动看看
+
+ok，把vite作为中间件启动本地服务成功了，我们现在要把React组件在服务端渲染好，然后以字符串html的形式返回给客户端
+#### 返回
+##### 创建html模板
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
+		<!-- 这里新增一个head标签的占位 -->
+		<!--app-head-->
+  </head>
+  <body>
+		<!-- 这里新增一个服务端返回内容的占位 -->
+    <div id="root"><!--app-html--></div>
+  </body>
+</html>
+
+```
+##### 使用`ssrLoadModule`解析入口文件
+```tsx
+app.use('*', async (req, res) => {
+  try {
+    const url = req.originalUrl
+    // 在这里可以返回服务端渲染的内容给客户端
+    let template = await fs.readFile('./index.html', 'utf-8')
+    template = await vite.transformIndexHtml(url, template)
+    let render = (await vite.ssrLoadModule('/src/entry-server.tsx')).render
+    const rendered = await render(url)
+
+    const html = template
+      .replace(`<!--app-head-->`, rendered.head ?? '')
+      .replace(`<!--app-html-->`, rendered.html ?? '')
+
+    res.status(200).set({ 'Content-Type': 'text/html' }).end(html)
+  } catch(e) {
+    vite?.ssrFixStacktrace(e)
+    res.status(500).end(e.stack)
+  }
+})
+```
+这里有两个重点：
+
+- 使用 `transformIndexHtml` 先处理html模板，vite会为我们添加一些客户端需要的脚本
+
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1690089541139-a9685437-8964-431a-8902-313eb42266af.png#averageHue=%23393939&clientId=u6e1077e1-5797-4&from=paste&height=170&id=ud6785d96&originHeight=340&originWidth=368&originalType=binary&ratio=2&rotation=0&showTitle=false&size=22321&status=done&style=none&taskId=ub45a27c9-1c64-4438-bc2e-c100e56b959&title=&width=184)
+
+- 使用 `ssrLoadModule` 解析ssr相关的文件
+
+
+我们现在实现了把html字符串返回给客户端，这些字符串是静态的，不具有交互性的。
+需要在客户端“激活”字符串并添加脚本，使其可交互
+
+我们先直接启动，看看服务端返回的静态网页长什么样子
+
+#### hydrate 激活
+首先，需要保证服务端返回的内容跟客户端激活的内容是一致的。所以我们需要稍微改造一下服务端入口文件
+```tsx
+import ReactDOMServer from 'react-dom/server'
+import App from './App'
+
+export function render() {
+  // 把内容抽离到App中
+	const html = ReactDOMServer.renderToString(<App/>)
+	return { html }
+}
+```
+然后新建一个客户端入口文件，渲染跟服务端一样的内容（重命名一下main.tsx即可）
+```tsx
+import './index.css'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+
+ReactDOM.hydrateRoot(
+  document.getElementById('root') as HTMLElement,
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+```
+最后，把客户端的脚本注入到html中即可
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
+		<!-- 这里新增一个head标签的占位 -->
+		<!--app-head-->
+  </head>
+  <body>
+		<!-- 这里新增一个服务端返回内容的占位 -->
+    <div id="root"><!--app-html--></div>
+
+		<!-- 注入客户端入口文件，vite会去解析 -->
+    <script type="module" src="/src/entry-client.tsx"></script>
+  </body>
+</html>
+
+```
+
+---
+
+这里是不是就跟咱们的SPA渲染差不多：
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+---
+
+最后，我们看一下可交互的网页
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1690091990082-de9a7e57-cb91-456c-bca1-25ef2d577c6b.png#averageHue=%23323232&clientId=u6e1077e1-5797-4&from=paste&height=380&id=ubf984ebe&originHeight=760&originWidth=558&originalType=binary&ratio=2&rotation=0&showTitle=false&size=78765&status=done&style=none&taskId=u4a927800-ad0a-4c5b-9add-795b2071333&title=&width=279)
+这些是客户端入口带来的资源，这些资源使得我们的网页有了交互性和css样式
+### 注意事项
+我们在服务端入口、客户端入口，都引入了一个名为 `App.tsx`的文件，这个文件我们称之为同构文件，
+它会在客户端、服务端都渲染，我们知道客户端和服务端是两个完全不同的环境，最典型的是：
+客户端没有node，服务端没有window
+所以我们在编写同构代码时，需要考虑环境问题
+
+
+至此，我们完成了一个最基础的ssr，也是最核心的原理。下文都是在以上核心上做扩展
+在继续讲解之前，我们看看如何使用vue完成上文类似的ssr基础项目，或许可以帮助各位更好的理解
+### vue版本
+思路跟react版本大同小异，我再快速重复一次，加深印象
+#### 初始化项目
+```bash
+pnpm create vite ssr-vue-demo --template vue-ts
+```
+#### 同构入口
+```tsx
+import { createSSRApp } from 'vue'
+import App from './App.vue'
+
+
+export function createApp() {
+  const app = createSSRApp(App)
+  return { app }
+}
+```
+#### 服务端渲染入口
+```tsx
+import { renderToString } from 'vue/server-renderer'
+import { createApp } from './main'
+
+export async function render() {
+  const { app } = createApp()
+  const ctx = {}
+  const html = await renderToString(app, ctx)
+
+  return { html }
+}
+```
+#### 创建服务
+##### 创建html模板
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + Vue + TS</title>
+    <!--app-head-->
+  </head>
+  <body>
+    <div id="app"><!--app-html--></div>
+  </body>
+</html>
+
+```
+##### 服务端渲染
+```tsx
+import express from 'express'
+import fs from 'fs/promises'
+
+// 创建http服务
+const app = express()
+
+// 为了方便各位理解，我们暂时不考虑正式环境
+
+// 开发环境下添加vite服务中间件
+const { createServer } = await import('vite')
+const vite = await createServer({
+	server: {
+		middlewareMode: true, // 以中间件模式启动vite开发服务
+	},
+	appType: 'custom',
+})
+app.use(vite.middlewares)
+
+// 拦截路由（* 通配符拦截所有请求）
+app.use('*', async (req, res) => {
+	try {
+		const url = req.originalUrl
+		// 在这里可以返回服务端渲染的内容给客户端
+		let template = await fs.readFile('./index.html', 'utf-8')
+		template = await vite.transformIndexHtml(url, template)
+		let render = (await vite.ssrLoadModule('/src/entry-server.ts')).render
+		const rendered = await render(url)
+
+		const html = template
+		.replace(`<!--app-head-->`, rendered.head ?? '')
+		.replace(`<!--app-html-->`, rendered.html ?? '')
+
+		res.status(200).set({ 'Content-Type': 'text/html' }).end(html)
+	} catch(e) {
+		vite?.ssrFixStacktrace(e)
+    console.log(e.stack)
+    res.status(500).end(e.stack)
+	}
+})
+
+
+const PORT = 9527
+app.listen(PORT, () => {
+	console.log(`Server started at http://localhost:${PORT}`)
+})
+```
+#### 客户端激活
+```diff
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + Vue + TS</title>
+    <!--app-head-->
+  </head>
+  <body>
+    <div id="app"><!--app-html--></div>
++   <script type="module" src="/src/entry-client.ts"></script>
+  </body>
+</html>
+```
+
+启动服务
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1690094446171-72cf159b-42c9-41f5-940c-3e5efee10c40.png#averageHue=%23363636&clientId=u6e1077e1-5797-4&from=paste&height=364&id=uf5942cfe&originHeight=728&originWidth=494&originalType=binary&ratio=2&rotation=0&showTitle=false&size=64316&status=done&style=none&taskId=u862afda4-95ee-4cd0-aa13-11a2c944b2a&title=&width=247)
+
+之后都用React做例子了，因为Vue、React的表现层是类似的，只是底层原理不同。
+```
+实际上Vue和React完全是两种设计理念
+Vue是非经典的MVVM模型
+React是函数模型
+框架的模型差异很大，其内部实现完全不同
+比如Vue3出了组合式编程，看起来好像跟React的hook模型一样，
+但因为两者本质模型不同、思想不同，就注定了他们的实现方式一定是不一样的
+所以尽量不要把先入为主的思想加于另一门语言
+```
+### 整理一下思路
+![](https://cdn.nlark.com/yuque/0/2023/jpeg/1447731/1690102906226-273e0779-21ba-4983-9f2c-b0a035383d4b.jpeg)
+
+### 接下来补充一下正式环境的处理
+
+- 打包构建
+- 服务资源
+- 部署上线
+
+既然我们提出了“正式环境”的概念，则需要一个变量来控制环境，在node项目中，普遍使用`NODE_ENV`来控制环境
+#### 打包构建
+因为我们有一个服务端入口函数、一个客户端入口函数，所以打包自然也需要打两个
+```json
+"scripts": {
+  "build": "npm run build:client && npm run build:server",
+  "build:client": "vite build --ssrManifest --outDir dist/client",
+  "build:server": "vite build --ssr src/entry-server.tsx --outDir dist/server"
+},
+```
+我们分析下这两个命令行
+`build:client`设置了2个参数：
+
+- ssrManifest：把打包后的资源生成一个构建清单，供ssr渲染使用
+- outDir：打包输出到 dist/client 目录
+
+`build:server`设置了2个参数：
+
+- ssr：设置这次打包是ssr打包，打包入口是 src/entry-server.tsx
+- outDir：打包输出到 dist/server 目录
+
+我们打包看看，得到的结果是否如我们所愿
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1690104257535-b20eebb4-cad6-4a37-93c5-6f747f9723e5.png#averageHue=%23232930&clientId=u6e1077e1-5797-4&from=paste&height=269&id=u339d1cc6&originHeight=538&originWidth=428&originalType=binary&ratio=2&rotation=0&showTitle=false&size=53275&status=done&style=none&taskId=ue33d63e0-aae2-4e74-83b9-99777712d2c&title=&width=214)
+看起来没什么问题，我们接下来使用node来服务这些静态文件
+#### 服务资源
+说到服务，我们就要想到把关注点放在server.js上
+这里粘一下之前的纯开发环境的serverjs
+```javascript
+import express from 'express'
+import fs from 'fs/promises'
+
+// 创建http服务
+const app = express()
+
+// 为了方便各位理解，我们暂时不考虑正式环境
+
+// 开发环境下添加vite服务中间件
+const { createServer } = await import('vite')
+const vite = await createServer({
+	server: {
+		middlewareMode: true, // 以中间件模式启动vite开发服务
+	},
+	appType: 'custom',
+})
+app.use(vite.middlewares)
+
+// 拦截路由（* 通配符拦截所有请求）
+app.use('*', async (req, res) => {
+	try {
+		const url = req.originalUrl
+		// 在这里可以返回服务端渲染的内容给客户端
+		let template = await fs.readFile('./index.html', 'utf-8')
+		template = await vite.transformIndexHtml(url, template)
+		let render = (await vite.ssrLoadModule('/src/entry-server.tsx')).render
+		const rendered = await render(url)
+
+		const html = template
+		.replace(`<!--app-head-->`, rendered.head ?? '')
+		.replace(`<!--app-html-->`, rendered.html ?? '')
+
+		res.status(200).set({ 'Content-Type': 'text/html' }).end(html)
+	} catch(e) {
+		vite?.ssrFixStacktrace(e)
+    console.log(e.stack)
+    res.status(500).end(e.stack)
+	}
+})
+
+
+const PORT = 9527
+app.listen(PORT, () => {
+	console.log(`Server started at http://localhost:${PORT}`)
+})
+```
+
+---
+
+现在我们添加正式环境相关的处理进去
+```javascript
+import express from 'express'
+import fs from 'fs/promises'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const resolve = (p) => path.resolve(__dirname, p)
+
+// 创建http服务
+const app = express()
+
+// 判断环境
+const isProduction = process.env.NODE_ENV === 'production'
+
+
+let vite
+if(!isProduction) {
+	// 开发环境下添加vite服务中间件
+	const { createServer } = await import('vite')
+	vite = await createServer({
+		server: {
+			middlewareMode: true, // 以中间件模式启动vite开发服务
+		},
+		appType: 'custom',
+	})
+	app.use(vite.middlewares)
+} else {
+	// 正式环境下不需要vite的server中间件了
+	// 我们需要自行操作如何服务静态资源
+	app.use((await import('compression')).default())
+	app.use(
+		(await import('serve-static')).default(resolve('dist/client'), {
+			index: false,
+		}),
+	)
+}
+
+// html模板
+const templateHtml = isProduction
+  ? await fs.readFile(resolve('./dist/client/index.html'), 'utf-8')
+  : ''
+
+// ssr渲染需要的静态资源清单
+const ssrManifest = isProduction
+  ? await fs.readFile(resolve('./dist/client/ssr-manifest.json'), 'utf-8')
+  : undefined
+
+// 拦截路由（* 通配符拦截所有请求）
+app.use('*', async (req, res， next) => {
+	try {
+		const url = req.originalUrl
+		let template
+		let render
+		if(!isProduction) {
+			// 在这里可以返回服务端渲染的内容给客户端
+			template = await fs.readFile('./index.html', 'utf-8')
+			template = await vite.transformIndexHtml(url, template)
+			render = (await vite.ssrLoadModule('/src/entry-server.tsx')).render
+		} else {
+			// 读取client的html模板
+			template = templateHtml
+      render = (await import('./dist/server/entry-server.js')).render
+		}
+
+		const rendered = await render(url, ssrManifest)
+
+		const html = template
+		.replace(`<!--app-head-->`, rendered.head ?? '')
+		.replace(`<!--app-html-->`, rendered.html ?? '')
+
+		res.status(200).set({ 'Content-Type': 'text/html' }).end(html)
+	} catch(e) {
+		vite?.ssrFixStacktrace(e)
+    console.log(e.stack)
+    res.status(500).end(e.stack)
+	}
+})
+
+
+const PORT = 9527
+app.listen(PORT, () => {
+	console.log(`Server started at http://localhost:${PORT}`)
+})
+
+```
+我们启动脚本试试
+
+
+## 上点硬菜🥘
+一个完整的项目还需要哪些功能呢？
+
+- 预渲染（SSG）
+- 路由
+- 状态管理
+- 静态资源管理
+- SEO管理
+- 分模块打包
+- 流渲染
+- edge runtime
+- 服务端渲染 ➕ 客户端渲染（混合渲染）
+- 统一错误边界
+- FOUC (flash of unstyled content)
+- 缓存
+- ......
+
+每个点拿出来都可以说很久，但篇幅有限为了便于大家理解，我只会落地它们偏简单的实现
+### 预渲染
+预渲染，也称为静态渲染。也就是说，页面在打包的时候被渲染好，不必在客户端请求时再被渲染一次
+预渲染的好处是可以极大程度上减轻服务器的压力，并且可以更好利用服务器和CDN的缓存
+
+要实现预渲染，首先我们需要预先定义好页面路由规则，然后我们才能根据规则，把组件预先渲染成HTML
+我们假设`src/pages`目录下的为页面组件，那么我们可以使用`react-router`做多页面路由
+
+先写客户端入口文件
+```tsx
+import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import { App } from './App'
+
+ReactDOM.hydrateRoot(
+  document.getElementById('app')!,
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>,
+)
+```
+
+服务端入口文件
+```tsx
+import ReactDOMServer from 'react-dom/server'
+import { StaticRouter } from 'react-router-dom/server'
+import { App } from './App'
+
+export function render(url: string) {
+  return {
+		html: ReactDOMServer.renderToString(
+			<StaticRouter location={url}>
+				<App />
+			</StaticRouter>,
+		)
+	}
+}
+```
+
+同构文件app.tsx
+```tsx
+import { Link, Route, Routes } from 'react-router-dom'
+
+const pages = import.meta.glob('./pages/*.tsx', { eager: true }) as Record<string, any>
+
+const routes = Object.keys(pages).map((path:string) => {
+  const name = path.match(/\.\/pages\/(.*)\.tsx$/)?.[1]
+  return {
+    name,
+    path: `/${name?.toLowerCase()}`,
+    component: pages[path].default,
+  }
+})
+
+export function App() {
+  return (
+    <>
+      <nav>
+        <ul>
+          {routes.map(({ name, path }) => {
+            return (
+              <li key={path}>
+                <Link to={path}>{name}</Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+      <Routes>
+        {routes.map(({ path, component: RouteComp }) => {
+          return <Route key={path} path={path} element={<RouteComp />}></Route>
+        })}
+      </Routes>
+    </>
+  )
+}
+```
+然后我们随便在pages中新建页面组件
+server.js还是使用原来的即可（一点都不需要改）
+然后我们启动本地服务试试看
+
+---
+
+本地服务其实跟预渲染没什么关系，因为预渲染本质上是一种构建和正式服务上的优化
+接下来我们实现预渲染
+前文说到了，预渲染是 把组件预先渲染成HTML
+所以我们需要
+
+1. 根据约定好的规则，找到需要预渲染的路由组件
+2. 然后调用前端框架的服务端渲染API，把组件渲染成html字符串
+3. 把html放在dist中，提供给node资源服务
+```javascript
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const toAbsolute = (p) => path.resolve(__dirname, p)
+
+// 获取基础模板
+const template = fs.readFileSync(toAbsolute('dist/static/index.html'), 'utf-8')
+// 获取服务端渲染函数
+const { render } = await import('./dist/server/entry-server.js')
+
+// 根据约定好的规则，找到需要预渲染的路由
+const routesToPrerender = fs
+  .readdirSync(toAbsolute('src/pages'))
+  .map((file) => {
+    const name = file.replace(/\.tsx$/, '').toLowerCase()
+    return `/${name}`
+  })
+
+// 调用渲染函数，把组件渲染成html字符串，保存在dist中
+;(async () => {
+  for (const url of routesToPrerender) {
+    const context = {}
+    const appHtml = await render(url, context).html
+
+    const html = template.replace(`<!--app-html-->`, appHtml)
+
+    const filePath = `dist/static${url === '/' ? '/index' : url}.html`
+    fs.writeFileSync(toAbsolute(filePath), html)
+  }
+})()
+
+```
+
+先吸收好基础知识，下次我们再讲 进阶的原理和应用
+### To be continued...
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/1447731/1690121105575-400b36f5-badb-4518-b1ef-b34fe5c0261e.png#averageHue=%23696b57&clientId=u6e1077e1-5797-4&from=paste&height=421&id=uea476541&originHeight=842&originWidth=848&originalType=binary&ratio=2&rotation=0&showTitle=false&size=761754&status=done&style=none&taskId=u779217f7-5b3c-444c-8468-7eae6447ff3&title=&width=424)
+
+
+
+

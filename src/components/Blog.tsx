@@ -23,7 +23,11 @@ export default function Blog({ data, tags }: Props) {
   }, [filter])
 
   function toggleTag(tag: string) {
-    setFilter((prev) => new Set(prev.has(tag) ? [...prev].filter((t) => t !== tag) : [...prev, tag]))
+    if (filter.has(tag)) {
+      setFilter(new Set())
+      return
+    }
+    setFilter(new Set([tag]))
   }
 
   return (

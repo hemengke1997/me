@@ -1,0 +1,128 @@
+---
+title: "react-sortable-hoc + react-tiny-virtual-list实现可拖拽虚拟列表"
+date: "2021-05-20 22:17"
+draft: false
+tags:
+- react
+---
+
+### code
+```jsx
+import { SortableContainer, SortableElement, SortableHandle, arrayMove } from 'react-sortable-hoc';
+import VirtualList from 'react-tiny-virtual-list';
+import { range } from 'lodash'
+import { useState, useCallback, useEffect, useRef } from 'react'
+
+const getItems = () => {
+	return range(500)
+}
+
+const Demo = () => {
+  
+  const [items, setItems] = useState()
+  
+  const [scrollOffset, setScrollOffset] = useState<number>();
+
+  const top = useRef<number>(0);
+
+  const onScroll = (scrollTop: number) => {
+    top.current = scrollTop;
+  };
+
+  useEffect(() => {
+    setScrollOffset(top.current);
+  }, [flexibleIndicator.length]);
+  
+  useEffect(() => {
+    setScrollOffset(top.current);
+  }, [items.length]);
+
+  const onSortEnd = useCallback(
+    ({ oldIndex, newIndex }: { oldIndex: number; newIndex: number }) => {
+      setItems((t) => arrayMove(t, oldIndex, newIndex));
+      setScrollOffset(top.current);
+    },
+    [],
+  );
+  	
+  	// 拖拽handler
+    const DragHandle = SortableHandle(() => <MenuOutlined className={styles.dragIcon} />);
+
+  
+  // 可拉拽Item
+  const SortableItem = SortableElement(
+    ({
+      value,
+      style,
+      height,
+    }: {
+      value: any;
+      style: CSSProperties;
+      height: number;
+    }) => {
+      return (
+        <div style={{ ...style, height }}>
+          <div>
+            <DragHandle />
+            <span>拖拽Item</span>
+          </div>
+          <CloseOutlined style={{ cursor: 'pointer' }} />
+        </div>
+      );
+    },
+  );
+  
+  const SortableVirtualList = SortableContainer(() => {
+    return (
+      <VirtualList
+        scrollOffset={scrollOffset}
+        onScroll={onScroll}
+        height={listHeight} // props传下来的，因为想得到100%的高度，virtualList不支持百分比高度，所以父盒子通过getClientBoudingRect()来获取到盒子高度(flex布局，高度不定)
+        itemCount={items.length}
+        itemSize={42}
+        style={{ padding: '0 16px' }}
+        renderItem={({ index, style }) => {
+          const item = items[index];
+          return (
+            <SortableItem
+              key={item}
+              value={{ ...item, index }}
+              index={index}
+              style={style}
+              height={40}
+            ></SortableItem>
+          );
+        }}
+      ></VirtualList>
+    );
+  });
+
+	return (
+    <SortableVirtualList
+      useDragHandle
+      helperClass={styles.helper}
+      lockAxis="y"
+      axis="y"
+      lockToContainerEdges
+      onSortEnd={onSortEnd}
+    />
+  );
+}
+
+return default Demo
+```
+
+### 效果
+![动画3.gif](https://cdn.nlark.com/yuque/0/2021/gif/1447731/1621519810929-13fa719d-96b7-481c-86aa-bcd62d3cb961.gif#clientId=u835a21d9-487d-4&from=ui&height=472&id=u06a32016&originHeight=472&originWidth=217&originalType=binary&size=215692&status=done&style=none&taskId=u0c667e22-d1d8-4bb5-bc7c-cff66b24963&width=217)
+
+### 总结
+
+每次组件render时，`SortableContainer`会render，导致 `SortableContainer`中的元素render，导致虚拟列表刷新，滚动条回滚到顶部，所以需要在虚拟列表滚动时记住滚动高度，在render时设置初始offsetScroll
+
+这是 `react-sortable-hoc` 的缺点，后续学习 `dnd-kit` 后，重新写一个可拉拽虚拟列表
+
+### 虚拟列表的好处
+
+插入或删除dom，比较耗时，尤其当dom节点很多时，会明显感觉到列表改变时的卡顿，拉拽也会有锯齿感。
+使用虚拟列表可以完全规避这些问题
+但是虚拟列表的坏处是，无法使用 `ctrl + f` 全局搜索， `SEO` 也不好， 可访问性也差，不过这些都可以接受
