@@ -26,9 +26,6 @@ import { remarkPostTime, remarkReadingTime } from './src/utils/remark.mjs'
 // https://astro.build/config
 export default defineConfig({
   site: 'https://minko-me.vercel.app',
-  build: {
-    format: 'file',
-  },
   integrations: [
     mdx(),
     sitemap(),
