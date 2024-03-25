@@ -2,7 +2,7 @@ import type { Links, Page, Site, Socials } from '~/types'
 
 // Global
 export const SITE: Site = {
-  TITLE: `Minko`,
+  TITLE: `Minko site`,
   DESCRIPTION: `Welcome to minko's blog.`,
   AUTHOR: 'Minko (hemengke1997)',
 }
