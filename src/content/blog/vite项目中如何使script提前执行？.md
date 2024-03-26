@@ -38,7 +38,7 @@ tags:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-+   <script src="/some-scripts/hello-world.ts"></script>
+    <script src="/some-scripts/hello-world.ts"></script> // [!code ++]
   </head>
   <body>
 
