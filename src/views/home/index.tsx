@@ -54,9 +54,7 @@ export default function Index() {
               <p className='animated text-2xl font-bold uppercase text-black md:text-3xl lg:text-4xl dark:text-white'>
                 Building something cool
               </p>
-              <p className='animated text-sm opacity-75 md:text-base lg:text-lg'>
-                一个热爱技术的前端工程师，专注于效率工具开发
-              </p>
+              <p className='animated text-sm opacity-75 md:text-base lg:text-lg'></p>
 
               <div className='animated mt-5 flex flex-wrap justify-center gap-4'>
                 <a
@@ -84,6 +82,29 @@ export default function Index() {
 
       <div className='relative bg-white dark:bg-black'>
         <div className='mx-auto max-w-screen-sm space-y-24 p-5 pb-16'>
+          <section className='animate'>
+            <article>
+              <p>
+                热爱生活，坚持每天运动
+                <b> 1 </b>
+                小时 ，目标是2024年体重到115斤
+              </p>
+              <p>热爱工作，2024年要卷个痛快，为前途奋斗</p>
+              <p>热爱编程，专注于效率工具开发</p>
+              <p>热爱开源，我的成长来自于开源，我也将把我的成长反哺给开源社区</p>
+              <p>喜欢分享、讲述一些技术上或者生活上的心得。更乐意倾听别人的想法和输出</p>
+              <p>
+                喜欢透明、欢乐、热爱分享的工作氛围。都说一个人可能走得更远，一群人可以走得更久，但长久的秘诀是心之所向皆为一处
+              </p>
+              <p>讨厌心机，也讨厌算计</p>
+              <p>希望能找到志同道合的朋友，一起成长一起进步</p>
+              <p>
+                <b>
+                  <i className={'text-lg'}>「知之为知之，不知为不知，是知也」</i>
+                </b>
+              </p>
+            </article>
+          </section>
           {/* <!-- Blog Preview Section --> */}
           <section className='animate'>
             <div className='space-y-4'>
