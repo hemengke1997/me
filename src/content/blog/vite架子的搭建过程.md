@@ -1,6 +1,5 @@
 ---
 title: "vite架子的搭建过程"
-summary: "一个很简单但是大部分人都不知道的技巧"
 date: "2022-08-08 15:14:47"
 draft: false
 tags:
