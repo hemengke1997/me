@@ -9,4 +9,4 @@ repoUrl: https://github.com/hemengke1997/vite-plugin-public-typescript
 ---
 
 [![stars](https://img.shields.io/github/stars/hemengke1997/vite-plugin-public-typescript.svg?style=social&label=Stars)](https://github.com/hemengke1997/vite-plugin-public-typescript)
-![npm](https://img.shields.io/npm/v/@minko-fe/vite-plugin-public-typescript?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))
+![npm](https://img.shields.io/npm/v/vite-plugin-public-typescript?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))

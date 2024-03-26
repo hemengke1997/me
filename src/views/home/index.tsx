@@ -48,7 +48,7 @@ export default function Index() {
         </div>
         <div className='animate absolute flex size-full items-center justify-center'>
           <div className='relative flex size-full items-center justify-center'>
-            <div className='p-5 text-center'>
+            <div className='relative p-5 text-center'>
               <p className='animated mb-1 text-lg font-semibold opacity-75 md:text-xl lg:text-2xl'>你好，我是 Minko</p>
 
               <p className='animated text-2xl font-bold uppercase text-black md:text-3xl lg:text-4xl dark:text-white'>
@@ -57,11 +57,7 @@ export default function Index() {
               <p className='animated text-sm opacity-75 md:text-base lg:text-lg'>
                 一个热爱技术的前端工程师，专注于效率工具开发
               </p>
-              <img
-                src='https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&duration=3000&pause=100&center=true&color=149ECA&vCenter=true&random=true&width=432&lines=Nodejs;React;Typescript;Nextjs;Vite;antd;VSCode;Postcss;I18n;Rust;Astro'
-                alt='Skill'
-                className={'w-full'}
-              />
+
               <div className='animated mt-5 flex flex-wrap justify-center gap-4'>
                 <a
                   href='/blog'
@@ -75,6 +71,11 @@ export default function Index() {
                 >
                   查看项目
                 </a>
+                <img
+                  src='https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&duration=3000&pause=100&center=true&color=149ECA&vCenter=true&random=true&width=432&lines=Nodejs;React;Typescript;Nextjs;Vite;antd;VSCode;Postcss;I18n;Rust;Astro'
+                  alt='Skill'
+                  className={'absolute bottom-0 w-full translate-y-[100%]'}
+                />
               </div>
             </div>
           </div>

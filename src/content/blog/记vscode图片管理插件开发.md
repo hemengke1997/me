@@ -1,5 +1,6 @@
 ---
-title: "还在用tinypng？不如试试这个vscode插件！"
+title: "记vscode图片管理插件开发"
+summary: "梳理一下心路历程和开发过程"
 date: "2024-01-17 18:37:56"
 draft: false
 tags:

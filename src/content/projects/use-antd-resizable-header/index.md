@@ -10,4 +10,4 @@ repoUrl: https://github.com/hemengke1997/use-antd-resizable-header
 ---
 
 [![stars](https://img.shields.io/github/stars/hemengke1997/use-antd-resizable-header.svg?style=social&label=Stars)](https://github.com/hemengke1997/use-antd-resizable-header)
-![npm](https://img.shields.io/npm/v/@minko-fe/use-antd-resizable-header?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))
+![npm](https://img.shields.io/npm/v/use-antd-resizable-header?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))

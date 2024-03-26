@@ -274,7 +274,7 @@ export default Ide
 - appear 好像在 CSSTransition中没有用
 
 
-<video src="https://lark-video.oss-cn-hangzhou.aliyuncs.com/outputs/prod/yuque/2020/1447731/gif/1608712690940-9b893e32-b8a0-41b2-98f9-c2bf39ab7c1f.mp4?OSSAccessKeyId=LTAI4GGhPJmQ4HWCmhDAn4F5&Expires=1711362077&Signature=h9Gv0t8xYn4yN8LS%2BF6PVe6fFQk%3D" preload="metadata" controls />
+<video src="/videos/react_进阶/1.mp4" preload="metadata" controls />
 
 
 

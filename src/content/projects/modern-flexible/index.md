@@ -9,4 +9,4 @@ repoUrl: https://github.com/hemengke1997/modern-flexible
 ---
 
 [![stars](https://img.shields.io/github/stars/hemengke1997/modern-flexible.svg?style=social&label=Stars)](https://github.com/hemengke1997/modern-flexible)
-![npm](https://img.shields.io/npm/v/@minko-fe/modern-flexible?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))
+![npm](https://img.shields.io/npm/v/modern-flexible?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))

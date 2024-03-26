@@ -19,4 +19,4 @@ repoUrl: https://github.com/hemengke1997/util
 - @minko-fe/vite-config - vite 配置集合
 
 [![stars](https://img.shields.io/github/stars/hemengke1997/util.svg?style=social&label=Stars)](https://github.com/hemengke1997/util)
-![npm](https://img.shields.io/npm/v/@minko-fe/util?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))
+

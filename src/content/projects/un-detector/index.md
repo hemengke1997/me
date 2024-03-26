@@ -9,4 +9,4 @@ repoUrl: https://github.com/hemengke1997/un-detector
 ---
 
 [![stars](https://img.shields.io/github/stars/hemengke1997/un-detector.svg?style=social&label=Stars)](https://github.com/hemengke1997/un-detector)
-![npm](https://img.shields.io/npm/v/@minko-fe/un-detector?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))
+![npm](https://img.shields.io/npm/v/un-detector?labelColor=rgb(104%2C%20104%2C%20104)&color=rgb(20%20158%20202%2F%201))
