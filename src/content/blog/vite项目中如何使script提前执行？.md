@@ -92,7 +92,7 @@ export default defineConfig(() => ({
 ![image.png](https://cdn.nlark.com/yuque/0/2024/png/1447731/1711074986282-ad29f5fb-7ea0-4564-a4b1-b69ee35b5a04.png#averageHue=%23252b33&clientId=u7433d92c-6b2f-4&from=paste&height=252&id=u36ba23bb&originHeight=504&originWidth=1070&originalType=binary&ratio=2&rotation=0&showTitle=false&size=102711&status=done&style=none&taskId=u0ebdf297-673d-40a2-bd4c-c9492e618eb&title=&width=535)
 
 ### 兼容性处理
-正式构建时，我们通常需要做代码兼容，在vite中，我们使用 @vitejs/pliugin-leagcy 做传统浏览器兼容，关于这个vite插件，不了解的同学可以看我的[另一篇文章](https://juejin.cn/post/7165493414048301070)
+正式构建时，我们通常需要做代码兼容，在vite中，我们使用 @vitejs/pliugin-leagcy 做传统浏览器兼容，关于这个vite插件，不了解的同学可以看我的[另一篇文章](./vitejs_plugin-legacy原理)
 在这里，我们直接引入legacy插件，看看效果即可
 ```typescript
 import legacy from '@vitejs/plugin-legacy'
