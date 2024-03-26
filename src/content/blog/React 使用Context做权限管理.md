@@ -9,7 +9,7 @@ tags:
 
 
 # 参考
-[https://github1s.com/umijs/plugins/blob/master/packages/plugin-access/src/index.ts](https://github1s.com/umijs/plugins/blob/master/packages/plugin-access/src/index.ts)
+[https://github.com/umijs/plugins/blob/master/packages/plugin-access/src/index.ts](https://github.com/umijs/plugins/blob/master/packages/plugin-access/src/index.ts)
 # 前言
 React.Context是天然的状态管理方案，虽然有它的弊端（性能穿透），但是对于长时间不会改变的数据，是非常适合用Context存储的
 # 实现

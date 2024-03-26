@@ -11,7 +11,7 @@ tags:
 我们平时使用modal，一般是直接用Modal组件，有的情况也会使用 Modal.confirm() 等静态方法来显示modal。应该怎样去设计一个既有组件又有静态方法的组件呢？
 
 
-# [分析antd-modal](https://github1s.com/ant-design/ant-design/blob/master/components/modal/index.tsx)
+# [分析antd-modal](https://github.com/ant-design/ant-design/blob/master/components/modal/index.tsx)
 ## 目录结构 
 ![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652254033159-3f6312b6-4313-4141-949b-62efb8bb537d.png#clientId=u4e08350e-f789-4&from=paste&height=291&id=J5SDJ&originHeight=291&originWidth=277&originalType=binary&ratio=1&rotation=0&showTitle=false&size=9857&status=done&style=none&taskId=ue1088b5a-5bf7-4276-92cc-0c750ab6c54&title=&width=277)
 ## 从index中看导出了哪些api出去，首先引入眼帘的是Modal，那就从Modal下手吧，然后再分析静态方法
@@ -165,7 +165,7 @@ export default function confirm(config: ModalFuncProps) {
       // locale什么的不太重要
       
       // 这里的reactRender源码在
-      // https://github1s.com/react-component/util/blob/HEAD/src/React/render.ts
+      // https://github.com/react-component/util/blob/HEAD/src/React/render.ts
       // 对render做了react17的兼容处理
   
       reactRender(
@@ -415,7 +415,7 @@ export default Modal;
 > 2. 为什么没有采用 React.createPortal的方案来做静态方法的渲染？
 
 
-# [分析rc-dialog](https://github1s.com/react-component/dialog/blob/master/src/Dialog/index.tsx)
+# [分析rc-dialog](https://github.com/react-component/dialog/blob/master/src/Dialog/index.tsx)
 ## 温馨提示
 > rc-dialog不仅仅应用在antd modal上，很多Dialog式的组件内部都是用的它
 
@@ -563,6 +563,6 @@ export default Portal;
 ```
 ## Dialog组件
 ```typescript
-// https://github1s.com/react-component/dialog/blob/master/src/Dialog/index.tsx
+// https://github.com/react-component/dialog/blob/master/src/Dialog/index.tsx
 ```
 比较简单，不做分析，主要是使用了rc-motion做动画，难点可能是在dialog出现时需要锁定滚动条
