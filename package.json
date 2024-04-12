@@ -47,7 +47,7 @@
     "typescript": "^5.4.3"
   },
   "devDependencies": {
-    "@minko-fe/eslint-config": "^2.1.2",
+    "@minko-fe/eslint-config": "^2.2.0",
     "@minko-fe/prettier-config": "^2.2.0",
     "@minko-fe/tsconfig": "^2.0.7",
     "eslint": "^8.57.0",
