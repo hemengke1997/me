@@ -131,6 +131,23 @@ FROM node:18.17-alpine3.17
 RUN apk add git
 ```
 这个git的镜像可以接入到我们的基础镜像中，提升构建速度
+## 全局样式修改
+因为测试方需要全量的代码覆盖率，所以全局的样式污染需要更改：
+```css
+body {
+  padding-top: 16px;
+  width: 100%;
+}
+```
+更改为
+```tsx
+import { useGlobalStyle } from '@minko-fe/react-hook'
+
+useGlobalStyle('body', {
+  paddingTop: '16px',
+  width: '100%',
+})
+```
 ## 扩展式接入（进阶）
 基础使用的话，掌握插件式接入即可，如果有更加个性化的需求，可以使用扩展式接入
 ```typescript
