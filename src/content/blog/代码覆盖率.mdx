@@ -1,0 +1,187 @@
+---
+title: "代码覆盖率接入指南"
+date: "2024-04-24 10:22:52"
+draft: false
+tags:
+- 测试
+- vite插件
+---
+
+# 什么是代码覆盖率
+代码覆盖率指的是 **相对所有源码行数，执行了的代码行数。**
+请勿把 「测试覆盖率」 跟 「代码覆盖率」混为一谈
+# 为什么接入代码覆盖率，而非测试覆盖率
+首先，「测试覆盖率」指的是测试用例相对于源码所覆盖到的行，通常来说，当一切测试覆盖率的基础搞定后，只需要一个命令即可得到测试覆盖率的结果，这是一种偏自动化的测试方式，接入难度也更高
+而「代码覆盖率」，不需要我们编写测试用例，只是通过编译代码的时候，在源码中动态插入一些「能知道函数或变量是否被使用了」的代码（这个行为叫做 `instrument` 插桩）。然后测试同学通过手动在网页中测试，经过点击等一系列交互来执行前端代码，从而得到执行了的代码行数，也就是覆盖率
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/1447731/1713925159948-400028f6-0416-48cf-aa9f-3da450e5a3ec.png#averageHue=%23fbfbf9&clientId=u94d95ca9-9e6a-4&from=paste&height=449&id=ub9517d24&originHeight=898&originWidth=2734&originalType=binary&ratio=2&rotation=0&showTitle=false&size=104027&status=done&style=none&taskId=uc50ef539-b27f-4429-b0c1-1347121c9da&title=&width=1367)
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/1447731/1713925149402-1526878a-eab4-4f7b-a8b5-dca34ed2de08.png#averageHue=%23f8f8f8&clientId=u94d95ca9-9e6a-4&from=paste&height=540&id=u836f3a56&originHeight=1080&originWidth=1616&originalType=binary&ratio=2&rotation=0&showTitle=false&size=175587&status=done&style=none&taskId=ued77293d-6caa-4d32-8687-f49e97c0c42&title=&width=808)
+# 如何接入
+## 概念
+首先简单讲一下覆盖率涉及到的一些基础知识
+我使用的 `istanbul.js` 来做的代码覆盖率，要生成一个覆盖率结果，需要客户端和服务端配合
+客户端主要要做两个工作：
+
+1. 构建的时候插桩
+2. 提供一个上报的入口
+
+服务端主要做：
+
+1. 接收前端上报的coverage覆盖率数据，然后通过 `nyc`(也就是istanbul) 生成对应的结果
+2. 持久化数据
+
+不过站在前端的角度上，只需要考虑客户端的工作，然后跟测试同学打交道，测试同学会调用我提供的服务来生成覆盖率结果
+
+## vite插件式接入
+为了尽量减少侵入性，以及方便业务方接入，我把覆盖率集成到了vite插件中，这种方式是最简单的
+同时，这种方式也把上文说的客户端的 「两个工作」 都做了
+```typescript
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import { istanbulWidget } from 'vite-plugin-istanbul-widget'
+
+export default defineConfig((env) => ({
+  plugins: [
+    react(),
+    // 引入插件
+    istanbulWidget({
+      enabled: !(env.mode === 'production'),
+      // istanbul-widget 控件配置
+      istanbulWidgetConfig: {
+        // 
+        theme: 'dark',
+        defaultPosition: {
+          x: 20,
+          y: 100,
+        },
+        plugin: {
+          report: {
+            async onReport(coverage: any, ...args: any[]) {
+              // 调用上报方法
+              // 这个需要测试方提供接口上报
+              await window.__report(coverage, ...args)
+            },
+          },
+          setting: {
+            autoReport: false,
+            onLeavePage: true,
+            requireReporter: true,
+            text: '!设置文案!',
+          },
+          buttonGroup: [
+            {
+              text: '自定义按钮',
+              onClick(...args: any[]) {
+                window.__customClick(...args)
+              },
+            },
+          ],
+        },
+      },
+      // 全量上报
+      fullReport: true,
+    }),
+  ],
+}))
+```
+### 上报举例
+```typescript
+const toFormData = (obj) => {
+  const formData = new FormData()
+  Object.keys(obj).forEach((key) => {
+    formData.append(key, obj[key])
+  })
+  return formData
+}
+
+async function report(coverage, params) {
+  // 这个域名是测试方的
+  const res = await fetch('测试方提供的接口uri', {
+    body: toFormData({
+      pl_id: 'whatever', // 产品线id，测试同学告知
+      version_name: __GIT_COMMIT_ID__, // 全局变量，会通过vite插件注入
+      owner: params.setting.reporter, // 上报人
+      src_roots: '/app', // docker容器中的workdir
+      cov_data: JSON.stringify(coverage), // 覆盖率数据
+    }),
+    method: 'POST',
+  })
+  if (!res.ok) {
+    throw new Error('上报失败')
+  }
+}
+
+window.__report = report
+```
+由于插件注入了一些全局变量，所以为了更好的typescript提示，我们还需要引入一下类型
+```json
+{
+  "compilerOptions": {
+    "types": ["vite-plugin-istanbul-widget/client"]
+  }
+}
+```
+## dockerfile
+因为业务方需要我们提供项目的 git commit id，所以我们需要在docker中新增一个 git 的镜像。
+很简单：
+```dockerfile
+# 举个例而已
+FROM node:18.17-alpine3.17
+
+# 在基础镜像后执行
+RUN apk add git
+```
+这个git的镜像可以接入到我们的基础镜像中，提升构建速度
+## 扩展式接入（进阶）
+基础使用的话，掌握插件式接入即可，如果有更加个性化的需求，可以使用扩展式接入
+```typescript
+import { Button } from 'istanbul-widget/components'
+import { IstanbulWidget } from 'istanbul-widget'
+
+// 自定义插件
+function MyPlugin() {
+  return <Button size={'sm'}>this is my Plugin</Button>
+}
+
+const myPlugin = new IstanbulWidget.IstanbulWidgetReactPlugin('my_plugin', 'My Plugin', MyPlugin)
+
+// 给插件添加事件监听
+myPlugin.event.on('init', () => {
+  console.log('my plugin inited')
+})
+
+const istanbulWidget = new IstanbulWidget({
+  defaultPosition: {
+    x: -100,
+    y: 100,
+  },
+  plugin: {
+    report: {
+      onReport(coverage) {
+        console.log('上报', coverage)
+        throw new Error('上报失败')
+      },
+    },
+    setting: {
+      requireReporter: true,
+    },
+    buttonGroup: [
+      {
+        text: '额外按钮 - 1',
+        onClick() {
+          console.log('1')
+        },
+      },
+      {
+        text: '额外按钮 - 2',
+        onClick() {
+          console.log('2')
+        },
+      },
+    ],
+  },
+})
+
+// 把自定义的插件添加到istanbulWidget控件中
+istanbulWidget.addPlugin(myPlugin)
+```
+
