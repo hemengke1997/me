@@ -24,9 +24,9 @@ tags:
 
 **可以通过该hook，获得progress值，它的变化与NProgress相同**
 ```jsx
-import { useState, useCallback } from 'react';
-import ReactDOM from 'react-dom';
 import { Table } from 'antd';
+import { useCallback, useState } from 'react';
+import ReactDOM from 'react-dom';
 import useNProgress from 'use-nprogress';
 
 function MyTable() {

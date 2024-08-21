@@ -16,19 +16,19 @@ tags:
 ![image.png](https://cdn.nlark.com/yuque/0/2022/png/1447731/1652254033159-3f6312b6-4313-4141-949b-62efb8bb537d.png#clientId=u4e08350e-f789-4&from=paste&height=291&id=J5SDJ&originHeight=291&originWidth=277&originalType=binary&ratio=1&rotation=0&showTitle=false&size=9857&status=done&style=none&taskId=ue1088b5a-5bf7-4276-92cc-0c750ab6c54&title=&width=277)
 ## 从index中看导出了哪些api出去，首先引入眼帘的是Modal，那就从Modal下手吧，然后再分析静态方法
 ```typescript
-import type { ModalFuncProps } from './Modal';
-import OriginModal from './Modal';
 import type { ModalStaticFunctions } from './confirm';
+import type { ModalFuncProps } from './Modal';
 import confirm, {
-  withWarn,
+  modalGlobalConfig,
+  withConfirm,
+  withError,
   withInfo,
   withSuccess,
-  withError,
-  withConfirm,
-  modalGlobalConfig,
+  withWarn,
 } from './confirm';
-import useModal from './useModal';
 import destroyFns from './destroyFns';
+import OriginModal from './Modal';
+import useModal from './useModal';
 
 export { ModalProps, ModalFuncProps } from './Modal';
 

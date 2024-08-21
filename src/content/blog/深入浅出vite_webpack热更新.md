@@ -86,11 +86,9 @@ function propagateUpdate(
   
     const result = isNodeWithinCircularImports(node, currentChain)
     if (result) return result
-  } else {
-    if (!node.importers.size) {
+  } else if (!node.importers.size) {
       return true
     }
-  }
 
   for (const importer of node.importers) {
     const subChain = currentChain.concat(importer)
@@ -236,9 +234,9 @@ async function fetchUpdate({
       fetchedModule = await import(
         // suppresses dynamic import warning
         /* @vite-ignore */
-        base +
-          acceptedPathWithoutQuery.slice(1) +
-          `?${explicitImportRequired ? 'import&' : ''}t=${timestamp}${
+        `${base +
+          acceptedPathWithoutQuery.slice(1) 
+          }?${explicitImportRequired ? 'import&' : ''}t=${timestamp}${
             query ? `&${query}` : ''
           }`
       )

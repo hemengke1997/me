@@ -98,7 +98,7 @@ a === null || a === void 0 ? void 0 : a.b;
 `??` 与 `||` 功能比较相似，区别在于 **??在左侧表达式结果为 null 或者 undefined 时，才会返回右侧表达式** 。
 比如我们写了 `let b = a ?? 10` ，生成的代码如下
 ```jsx
-let b = a !== null && a !== void 0 ? a : 10
+const b = a !== null && a !== void 0 ? a : 10
 ```
 用 `??` 判断，就不用考虑 `0` 了， 0 也会为 true
 

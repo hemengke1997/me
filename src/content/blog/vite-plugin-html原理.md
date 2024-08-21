@@ -72,7 +72,7 @@ export defineConfig({
 // 从函数名可以推断出来此函数是在最后执行
 function postProcessHtml (html, assets, assetTags) {
 	if (typeof html !== 'string') {
-		return Promise.reject(new Error('Expected html to be a string but got ' + JSON.stringify(html)));
+		return Promise.reject(new Error(`Expected html to be a string but got ${  JSON.stringify(html)}`));
 	}
 	const htmlAfterInjection = options.inject
 		? injectAssetsIntoHtml(html, assets, assetTags)
@@ -92,15 +92,15 @@ function minifyHtml (html) {
 	} catch (e) {
 		const isParseError = String(e.message).indexOf('Parse Error') === 0;
 		if (isParseError) {
-			e.message = 'html-webpack-plugin could not minify the generated output.\n' +
-					'In production mode the html minifcation is enabled by default.\n' +
-					'If you are not generating a valid html output please disable it manually.\n' +
-					'You can do so by adding the following setting to your HtmlWebpackPlugin config:\n|\n|' +
-					'    minify: false\n|\n' +
-					'See https://github.com/jantimon/html-webpack-plugin#options for details.\n\n' +
-					'For parser dedicated bugs please create an issue here:\n' +
-					'https://danielruf.github.io/html-minifier-terser/' +
-				'\n' + e.message;
+			e.message = `html-webpack-plugin could not minify the generated output.\n` +
+					`In production mode the html minifcation is enabled by default.\n` +
+					`If you are not generating a valid html output please disable it manually.\n` +
+					`You can do so by adding the following setting to your HtmlWebpackPlugin config:\n|\n|` +
+					`    minify: false\n|\n` +
+					`See https://github.com/jantimon/html-webpack-plugin#options for details.\n\n` +
+					`For parser dedicated bugs please create an issue here:\n` +
+					`https://danielruf.github.io/html-minifier-terser/` +
+				`\n${  e.message}`;
 		}
 		throw e;
 	}

@@ -90,7 +90,7 @@ export function traverseModifyRoutes(propRoutes: Routes, access: any): Routes {
     // 判断路由是否有权限的具体代码
     if (currentRoute && currentRoute.access) {
       if (typeof currentRoute.access !== 'string') {
-        throw new Error('[access]: "access" field set in "' + currentRoute.path + '" route should be a string.');
+        throw new TypeError(`[access]: "access" field set in "${  currentRoute.path  }" route should be a string.`);
       }
       const accessProp = access[currentRoute.access];
 
@@ -142,8 +142,8 @@ export function traverseModifyRoutes(propRoutes: Routes, access: any): Routes {
 ```
 ## index导出
 ```typescript
-import AccessProvider from './utils/accessProvider';
 import AccessContext from './utils/accessContext';
+import AccessProvider from './utils/accessProvider';
 import { traverseModifyRoutes } from './utils/traverseModifyRoutes';
 
 export const useAccess = () => {

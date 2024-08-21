@@ -26,11 +26,11 @@ tags:
  */
 
 var debug = require('debug')('connect:dispatcher');
-var EventEmitter = require('events').EventEmitter;
+var EventEmitter = require('node:events').EventEmitter;
 var finalhandler = require('finalhandler');
-var http = require('http');
-var merge = require('utils-merge');
+var http = require('node:http');
 var parseUrl = require('parseurl');
+var merge = require('utils-merge');
 
 /**
  * Module exports.
@@ -116,7 +116,7 @@ proto.use = function use(route, fn) {
 
   // add the middleware
   debug('use %s %s', path || '/', handle.name || 'anonymous');
-  this.stack.push({ route: path, handle: handle });
+  this.stack.push({ route: path, handle });
 
   return this;
 };
@@ -137,7 +137,7 @@ proto.handle = function handle(req, res, out) {
 
   // final function handler
   var done = out || finalhandler(req, res, {
-    env: env,
+    env,
     onerror: logerror
   });
 
@@ -186,7 +186,7 @@ proto.handle = function handle(req, res, out) {
 
       // ensure leading slash
       if (!protohost && req.url[0] !== '/') {
-        req.url = '/' + req.url;
+        req.url = `/${  req.url}`;
         slashAdded = true;
       }
     }
@@ -309,7 +309,7 @@ app.use((req, res, next) => {
 });
 
 
-require('http').createServer(app).listen(3001)
+require('node:http').createServer(app).listen(3001)
 ```
 # 介绍
 `connect`是`express`的原型。`connect`虽然没有异步，却通过递归实现了洋葱模型（中间件模型）

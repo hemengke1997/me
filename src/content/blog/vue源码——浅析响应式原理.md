@@ -138,9 +138,9 @@ var arrayMethods = Object.create(arrayProto);
  * the prototype chain using __proto__
  */
 function protoAugment (target, src) {
-  /* eslint-disable no-proto */
+   
   target.__proto__ = src;
-  /* eslint-enable no-proto */
+   
 }
 ```
 
@@ -247,11 +247,11 @@ function defineReactive$$1 (
     },
     set: function reactiveSetter (newVal) {
       var value = getter ? getter.call(obj) : val;
-      /* eslint-disable no-self-compare */
+       
       if (newVal === value || (newVal !== newVal && value !== value)) {
         return
       }
-      /* eslint-enable no-self-compare */
+       
       if (process.env.NODE_ENV !== 'production' && customSetter) {
         customSetter();
       }

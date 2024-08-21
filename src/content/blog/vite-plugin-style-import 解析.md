@@ -14,13 +14,13 @@ vite transform阶段
 - 解析import语句中引入的项，然后针对此项新增style-import代码。如： `import { Button } from 'antd'`,则 `import 'antd/es/button/style/index'`
 
 ```typescript
+import type { ImportSpecifier } from 'es-module-lexer'
 import type { Plugin } from 'vite'
 import { createFilter } from '@rollup/pluginutils'
-import MagicString from 'magic-string'
-import type { ImportSpecifier } from 'es-module-lexer'
-import { init, parse } from 'es-module-lexer'
 import * as changeCase from 'change-case'
+import { init, parse } from 'es-module-lexer'
 import { isFunction } from 'lodash-es'
+import MagicString from 'magic-string'
 
 type ChangeCaseType =
   | 'camelCase'

@@ -220,11 +220,11 @@ const M = () => {
 类似vue的transition， 有一说一，vue的transition确实好用，增强了用户体验（也针对开发）
 在react中，这样来写
 ```jsx
-import React, { useState } from 'react'
 import { Button } from 'antd'
-import styles from './index.module.less'
-import './index.less'
+import React, { useState } from 'react'
 import { CSSTransition } from 'react-transition-group'
+import './index.less'
+import styles from './index.module.less'
 
 const Ide = () => {
   const [box1, setBox1] = useState<boolean>(true)

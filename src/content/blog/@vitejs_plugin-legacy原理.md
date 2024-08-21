@@ -72,8 +72,8 @@ js兼容/css兼容，都需要告诉打包工具，需要兼容到哪些浏览�
 `browserslist`这个工具是用来指定浏览器范围的工具，在 `postcss`/`[babel](https://babeljs.io/docs/en/babel-preset-env#browserslist-integration)`中普遍使用。
 我们可以在 `.browserslistrc`中指定需要兼容的浏览器范围，然后设置到 `plugin-legacy`中。这样就可以统一js/css打包目标了。
 ```typescript
-import browserslist from 'browserslist'
 import legacy from '@vitejs/plugin-legacy'
+import browserslist from 'browserslist'
 
 const browserslistConfig = browserslist.loadConfig({ path: '.' })
 

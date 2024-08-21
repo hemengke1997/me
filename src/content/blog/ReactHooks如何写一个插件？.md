@@ -21,11 +21,11 @@ tags:
 #### react-transition-group实现动画
 
 ```jsx
+import classnames from 'classnames';
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import styles from './index.module.less';
 import { CSSTransition } from 'react-transition-group';
-import classnames from 'classnames';
+import styles from './index.module.less';
 
 let timer = null;
 
@@ -35,7 +35,7 @@ const Toast = props => {
   const [toastStyle, setToastStyle] = useState({});
 
   const afterClose = () => {
-    let afterClose = props.afterClose;
+    const afterClose = props.afterClose;
     if (Toast._instance) {
       Toast.toastContainer.removeChild(Toast._instance);
       Toast._instance = null;
@@ -186,7 +186,7 @@ Toast.show = function(content) {
         ...Toast.defaultProps,
         visible: true,
         mountContainer: Toast._instance,
-        content: content,
+        content,
       };
     }
     ReactDOM.render(<Toast {...props} />, Toast._instance);
@@ -215,8 +215,8 @@ export default Toast;
 ```jsx
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { spring, TransitionMotion } from 'react-motion';
 import styles from './index.module.less';
-import { TransitionMotion, spring } from 'react-motion';
 
 let timer = null;
 
@@ -226,7 +226,7 @@ const Toast = props => {
   const [toastStyle, setToastStyle] = useState({ top: 0, opacity: 0 });
 
   const afterClose = () => {
-    let afterClose = props.afterClose;
+    const afterClose = props.afterClose;
     if (Toast._instance) {
       Toast.toastContainer.removeChild(Toast._instance);
       Toast._instance = null;
@@ -377,7 +377,7 @@ Toast.show = function(content) {
         ...Toast.defaultProps,
         visible: true,
         mountContainer: Toast._instance,
-        content: content,
+        content,
       };
     }
     ReactDOM.render(<Toast {...props} />, Toast._instance);

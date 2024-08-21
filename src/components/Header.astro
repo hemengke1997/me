@@ -7,20 +7,20 @@ const { pathname } = Astro.url
 const subpath = pathname.match(/[^/]+/g)
 ---
 
-<header id='header' class='fixed top-0 w-full h-16 z-50'>
+<header id='header' class='fixed top-0 z-50 h-16 w-full'>
   <Container size='md'>
     <div class='relative h-full w-full'>
-      <div class='absolute left-0 top-1/2 -translate-y-1/2 flex gap-1 font-semibold'>
+      <div class='absolute left-0 top-1/2 flex -translate-y-1/2 gap-1 font-semibold'>
         <a
           href='/'
-          class='flex gap-1 text-current hover:text-black dark:hover:text-white transition-colors duration-300 ease-in-out'
+          class='flex gap-1 text-current transition-colors duration-300 ease-in-out hover:text-black dark:hover:text-white'
         >
           <Logo className={'h-auto w-20'} />
         </a>
       </div>
 
       <div class='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'>
-        <nav class='hidden md:flex items-center justify-center text-sm gap-1'>
+        <nav class='hidden items-center justify-center gap-1 text-sm md:flex'>
           {
             LINKS.map((LINK) => (
               <a
@@ -30,8 +30,8 @@ const subpath = pathname.match(/[^/]+/g)
                   'flex items-center justify-center',
                   'transition-colors duration-300 ease-in-out',
                   pathname === LINK.HREF || `/${subpath?.[0]}` === LINK.HREF
-                    ? 'bg-black dark:bg-white text-white dark:text-black'
-                    : 'hover:bg-black/5 dark:hover:bg-white/20 hover:text-black dark:hover:text-white',
+                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                    : 'hover:bg-black/5 hover:text-black dark:hover:bg-white/20 dark:hover:text-white',
                 )}
               >
                 {LINK.TEXT}
@@ -41,7 +41,7 @@ const subpath = pathname.match(/[^/]+/g)
         </nav>
       </div>
 
-      <div class='buttons absolute right-0 top-1/2 -translate-y-1/2 flex gap-1'>
+      <div class='buttons absolute right-0 top-1/2 flex -translate-y-1/2 gap-1'>
         <a
           href='/search'
           aria-label={`Search blog posts and projects on ${SITE.TITLE}`}
@@ -92,10 +92,10 @@ const subpath = pathname.match(/[^/]+/g)
             'transition-colors duration-300 ease-in-out',
           )}
         >
-          <svg class='size-full block dark:hidden'>
+          <svg class='block size-full dark:hidden'>
             <use href='/ui.svg#sun'></use>
           </svg>
-          <svg class='size-full hidden dark:block'>
+          <svg class='hidden size-full dark:block'>
             <use href='/ui.svg#moon'></use>
           </svg>
         </button>

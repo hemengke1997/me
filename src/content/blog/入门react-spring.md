@@ -41,7 +41,7 @@ function Demo() {
 `index.js` 
 ```jsx
 import React, { useRef, useState } from 'react';
-import { useSpring, animated } from 'react-spring';
+import { animated, useSpring } from 'react-spring';
 import useKnobs from './useKnobs';
 import './index.less';
 
@@ -158,7 +158,7 @@ export default function useKnobs(initialValues, options) {
 ##### index.js
 ```jsx
 import React, { useState } from 'react';
-import { useSpring, animated as a, config } from 'react-spring';
+import { animated as a, config, useSpring } from 'react-spring';
 import './index.less';
 
 export default function Card() {
@@ -224,7 +224,7 @@ export default function Card() {
 ##### index.js
 ```jsx
 import React from 'react';
-import { useSpring, animated, interpolate } from 'react-spring';
+import { animated, interpolate, useSpring } from 'react-spring';
 import { useDrag } from 'react-use-gesture';
 import './index.less';
 
@@ -337,7 +337,7 @@ export default Slider;
 #### 代码
 ```jsx
 import React from 'react';
-import { useSpring, animated } from 'react-spring';
+import { animated, useSpring } from 'react-spring';
 import './index.less';
 
 export default function Demo4() {
@@ -387,8 +387,8 @@ export default function Demo4() {
 #### 代码
 ```jsx
 import React, { useState } from 'react';
+import { animated, config, useSpring } from 'react-spring';
 import useMeasure from 'react-use-measure';
-import { useSpring, animated, config } from 'react-spring';
 
 export default function Demo() {
   const [ref, rect] = useMeasure();
@@ -420,7 +420,7 @@ export default function Demo() {
 #### 代码
 ```jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { useSpring, animated } from 'react-spring';
+import { animated, useSpring } from 'react-spring';
 import useMeasure from 'react-use-measure';
 import * as Icons from './icon';
 import './index.less';
@@ -603,10 +603,10 @@ export { PlusSquareO, MinusSquareO, CloseSquareO }
 ### drag球
 #### code
 ```jsx
-import React from 'react';
-import { useSpring, animated as a } from 'react-spring';
-import { useDrag } from 'react-use-gesture';
 import { clamp } from 'lodash';
+import React from 'react';
+import { animated as a, useSpring } from 'react-spring';
+import { useDrag } from 'react-use-gesture';
 import './index.less';
 
 export default function Demo() {

@@ -1,0 +1,84 @@
+---
+title: "react-router6.4.0更新了什么"
+date: "2024-08-21 13:44"
+draft: false
+tags:
+- react
+- react-router
+---
+
+与6.3.0相比，6.4.0引入了数据路由的概念
+我觉得数据路由的api都是为了remix服务，而非单纯的spa项目
+这次的大更新，个人认为应该把版本变更为7.0.0，因为改动特别大，虽然保持了向后兼容，但是react-router包的体积相比之前增加了2倍有余
+不理解react-router的团队是怎么想的，为什么要把react-router搞得如此臃肿？为了私心？希望通过react-router引流到remix？maybe吧
+
+## 正文
+### 数据路由
+说白了就是 “数据” + “路由”，以前只是单纯的路由，现在引入了“数据”概念
+何为数据呢？
+#### loader
+```typescript
+createBrowserRouter([
+  {
+    element: <Teams />,
+    path: "teams",
+    // loader 在组件渲染之前执行
+    // 通常用于获取后端数据
+    // 然后在组件中可以通过 userLoaderData 获取到返回
+    loader: async () => {
+      return fakeDb.from("teams").select("*");
+    },
+    children: [
+      {
+        element: <Team />,
+        path: ":teamId",
+        loader: async ({ params }) => {
+          return fetch(`/api/teams/${params.teamId}.json`);
+        },
+      },
+    ],
+  },
+]);
+```
+#### action
+我都不想讲action，非常鸡肋
+现在前端基本上都是通过ajax做form表单请求了，几乎很少用form的action做表单请求！
+```typescript
+<Route
+  path="/song/:songId/edit"
+  element={<EditSong />}
+  action={async ({ params, request }) => {
+    let formData = await request.formData();
+    return fakeUpdateSong(params.songId, formData);
+  }}
+  loader={({ params }) => {
+    return fakeGetSong(params.songId);
+  }}
+/>
+```
+```typescript
+// forms
+<Form method="post" action="/songs" />;
+<fetcher.Form method="put" action="/songs/123/edit" />;
+
+// imperative submissions
+let submit = useSubmit();
+submit(data, {
+  method: "delete",
+  action: "/songs/123",
+});
+
+// 这里提交表单，就会执行上面Route中定义的 action 方法
+fetcher.submit(data, {
+  method: "patch",
+  action: "/songs/123/edit",
+});
+```
+
+思考一下，好像看起来loader，action定义很简单方便？但是如何做到低耦合？我总不能在路由配置文件中去写组件的loader吧？这会导致非常难维护，而且耦合严重
+其实这就是react-router数据路由带来的问题，“数据”耦合严重，我们明明只需要路由，但是官方为了却引入了remix的data api！依托答辩！
+
+配置式、声明式路由都不再方便，仿remix的约定式路由才能方便地使用到react-router数据路由模式
+也就是在组件文件中导出组件、loader、action等，这样做到了高聚合，组件相关的，就应该组织到组件中，而非全局配置文件中
+
+所以我做了[vite-plugin-remix-flat-routes](https://github.com/hemengke1997/vite-plugin-remix-flat-route) 插件，模仿remix路由，在vite的编译阶段把组件导出组织成react-router所需要的形式

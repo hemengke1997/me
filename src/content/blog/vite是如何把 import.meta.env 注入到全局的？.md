@@ -23,9 +23,9 @@ tags:
 使用 `dotenv`这个库来读取的 .env 变量。还使用了 `dotenv-expand`这个库来实现 .env 文件中使用变量的功能
 贴一下核心代码
 ```typescript
-import fs from 'node:fs'
 import dotenv from 'dotenv'
 import dotenvExpand from 'dotenv-expand'
+import fs from 'node:fs'
 import { arraify, lookupFile } from './utils'
 
 export function loadEnv(
@@ -191,7 +191,7 @@ export function definePlugin(config: ResolvedConfig): Plugin {
         hasReplaced = true
         const start = match.index
         const end = start + match[0].length
-        const replacement = '' + replacements[match[1]]
+        const replacement = `${  replacements[match[1]]}`
         s.overwrite(start, end, replacement, { contentOnly: true })
       }
       return transformStableResult(s, id, config)

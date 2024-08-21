@@ -207,7 +207,7 @@ api().then(res=>{
 ```
 ```typescript
 function exeStrategy<T extends (...args: any[]) => boolean, U extends () => any>(stroage: Map<T, U>, ...args: any[]) {
-  for (let [condition, method] of stroage) {
+  for (const [condition, method] of stroage) {
     if (condition(...args)) {
       return method();
     }

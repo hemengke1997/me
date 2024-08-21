@@ -44,7 +44,7 @@ const defines = {
   'processs.env': 'dev'
 }
 
-let w = {
+const w = {
   test: '1'
 }
 
@@ -160,8 +160,8 @@ const server = resolveServer(config, app.callback())
 > 从指定目录开始向上查找指定文件列表
 
 ```javascript
-const path = require('path');
-const fs = require('fs');
+const fs = require('node:fs');
+const path = require('node:path');
 
  function lookupFile(
   dir,

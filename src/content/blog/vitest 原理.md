@@ -104,7 +104,7 @@ export const modA = {
 
 ```
 ```typescript
-import { it, expect, vi } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { modA } from './modA'
 
 it('should work', () => {

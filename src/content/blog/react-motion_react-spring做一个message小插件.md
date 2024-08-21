@@ -18,9 +18,9 @@ tags:
 ```jsx
 import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import ReactDOM from 'react-dom';
-import styles from './index.module.less';
-import { TransitionMotion, spring, presets } from 'react-motion';
+import { presets, spring, TransitionMotion } from 'react-motion';
 import UUID from 'uuidjs';
+import styles from './index.module.less';
 
 const TRANSLATEY = 120;
 const Message = React.memo(props => {
@@ -36,7 +36,7 @@ const Message = React.memo(props => {
           key: 'message',
           style: {
             translateY: spring(0, presets.wobbly),
-            height: height,
+            height,
             opacity: spring(1),
           },
         },
@@ -46,7 +46,7 @@ const Message = React.memo(props => {
   }, [visibleState, height]);
 
   const afterClose = () => {
-    let afterClose = props.afterClose;
+    const afterClose = props.afterClose;
     if (typeof afterClose === 'function') {
       afterClose();
     }

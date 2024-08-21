@@ -10,7 +10,7 @@ export default function Container(props: PropsWithChildren<Props>) {
   return (
     <div
       className={mergeClass(
-        'w-full h-full mx-auto px-5',
+        'mx-auto h-full w-full px-5',
         size === 'sm' && 'max-w-screen-sm',
         size === 'md' && 'max-w-screen-md',
         size === 'lg' && 'max-w-screen-lg',
