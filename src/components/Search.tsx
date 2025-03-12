@@ -1,7 +1,7 @@
 import type { CollectionEntry } from 'astro:content'
 import { useDebounceEffect } from '@minko-fe/react-hook'
-import Fuse from 'fuse.js'
 import { useState } from 'react'
+import Fuse from 'fuse.js'
 import ArrowCard from '~/components/ArrowCard'
 
 type Props = {

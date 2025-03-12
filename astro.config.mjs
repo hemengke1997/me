@@ -1,6 +1,6 @@
+import react from '@astrojs/react'
 import { rehypeHeadingIds } from '@astrojs/markdown-remark'
 import mdx from '@astrojs/mdx'
-import react from '@astrojs/react'
 import sitemap from '@astrojs/sitemap'
 import tailwind from '@astrojs/tailwind'
 import {
@@ -12,8 +12,8 @@ import {
   transformerNotationHighlight,
   transformerNotationWordHighlight,
 } from '@shikijs/transformers'
-import { defineConfig, passthroughImageService } from 'astro/config'
 import compress from 'astro-compress'
+import { defineConfig, passthroughImageService } from 'astro/config'
 // import pagefind from 'astro-pagefind'
 import { rehypeAccessibleEmojis } from 'rehype-accessible-emojis'
 import rehypeExternalLinks from 'rehype-external-links'

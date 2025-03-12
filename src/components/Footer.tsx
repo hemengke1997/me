@@ -1,6 +1,6 @@
+import Logo from '../assets/logo.svg?react'
 import Container from '~/components/Container'
 import { SITE, SOCIALS } from '~/consts'
-import Logo from '../assets/logo.svg?react'
 
 export default function Footer() {
   return (
@@ -76,7 +76,7 @@ export default function Footer() {
           <Container size='md'>
             <div className='grid h-full grid-cols-1 gap-3 sm:grid-cols-2'>
               <div className='order-2 flex flex-col items-center justify-center sm:order-1 sm:items-start'>
-                <div className='mt-2 text-sm'> &copy; 2024 | All rights reserved </div>
+                <div className='mt-2 text-sm'> &copy; {new Date().getFullYear()} | All rights reserved </div>
               </div>
 
               <div className='order-1 flex justify-center sm:order-2 sm:justify-end'>
