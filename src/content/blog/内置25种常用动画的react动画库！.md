@@ -35,7 +35,7 @@ function Demo() {
     <Transition
       mounted={open}
     >
-      {(styles) => <div style={style}>Hello, World!</div>}
+      {(style) => <div style={style}>Hello, World!</div>}
     </Transition>
   )
 }
@@ -53,7 +53,7 @@ function Demo() {
       mounted={true}
 +     initial={true}
     >
-      {(styles) => <div style={style}>Hello, World!</div>}
+      {(style) => <div style={style}>Hello, World!</div>}
     </Transition>
   )
 }
@@ -72,7 +72,7 @@ function Demo() {
 +     mounted={'whileInView'}
       initial={true}
     >
-      {(styles) => <div style={style}>Hello, World!</div>}
+      {(style) => <div style={style}>Hello, World!</div>}
     </Transition>
   )
 }
