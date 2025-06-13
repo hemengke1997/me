@@ -70,7 +70,7 @@ export default function Index() {
                   查看项目
                 </a>
                 <img
-                  src='https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&duration=3000&pause=100&center=true&color=149ECA&vCenter=true&random=true&width=432&lines=Nodejs;React;Typescript;Nextjs;Vite;antd;VSCode;Postcss;I18n;Rust;Astro'
+                  src='https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&duration=3000&pause=100&center=true&color=fff&vCenter=true&random=true&width=432&lines=Nodejs;React;Typescript;Nextjs;Vite;antd;VSCode;Postcss;I18n;Astro'
                   alt='Skill'
                   className={'absolute bottom-0 w-full translate-y-[100%]'}
                 />
@@ -84,11 +84,7 @@ export default function Index() {
         <div className='mx-auto max-w-screen-sm space-y-24 p-5 pb-16'>
           <section className='animate'>
             <article>
-              <p>
-                热爱生活，坚持每天运动
-                <b> 1 </b>
-                小时 ，目标是2024年体重到115斤（已完成）
-              </p>
+              <p>热爱生活，坚持每天运动</p>
               <p>热爱编程，专注于效率工具开发</p>
               <p>热爱开源，我的成长来自于开源，我也将把我的成长反哺给开源社区</p>
               <p>喜欢分享、讲述一些技术上或者生活上的心得。更乐意倾听别人的想法和输出</p>
